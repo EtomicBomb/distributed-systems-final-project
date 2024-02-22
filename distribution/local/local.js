@@ -25,12 +25,12 @@ class Status {
             port: () => node.port,
             counts: () => this.counts,
         };
-        getter = getter[installation]?.bind(this);
+        getter = getter[installation];
         if (getter === undefined) {
             callback(new Error(`could not identify status kind ${installation}`), null);
             return;
         }
-        console.trace('calling callback, and got', getter());
+        getter = getter.bind(this);
         callback(null, getter());
     }
 }
@@ -65,7 +65,6 @@ class Comm {
             callback(new Error(`missing node, service, or method ${remote}`), null);
             return;
         }
-        console.error('remote node is actually', remote.node);
         const options = {
             host: remote.node.ip,
             port: remote.node.port,
@@ -73,7 +72,6 @@ class Comm {
             method: 'POST',
             headers: { 'Content-type': 'application/json' },
         };
-        console.trace('options', options);
         const req = http.request(options, (res) => {
             let body = [];
             res.on('data', (chunk) => {
@@ -85,7 +83,6 @@ class Comm {
             });
         });
         req.on('error', (e) => {
-            console.trace('error', e);
             callback(new Error('request send error', { cause: e }), null);
         });
         req.write(serialization.serialize(message));
@@ -99,11 +96,10 @@ class RPC {
     }
 
     get(installation) {
-        return this.installed[+installation];
+        return this.installed[installation];
     }
 
-    call(message, callback) {
-        const { args, installation } = message;
+    call(args, installation, callback) {
         if (args === undefined || installation === undefined) {
             callback(new Error(`missing args or installation`), null);
         }
@@ -111,7 +107,7 @@ class RPC {
     }
 
     install(func) {
-        const installation = `${this.installed.length}`;
+        const installation = this.installed.length;
         this.installed.push(func);
         return installation;
     }

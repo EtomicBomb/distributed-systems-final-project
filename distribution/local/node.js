@@ -24,7 +24,6 @@ const start = function(started) {
       }
 
       [_, service, method] = serviceMethod;
-      console.trace('recieved request', service, method);
 
     let body = [];
     req
@@ -39,18 +38,17 @@ const start = function(started) {
           callback(new Error(`could not parse json ${body}`), null);
             return;
         }
-        console.trace('responding', service, method, body);
         let handler;
         handler = local[service];
         if (handler === undefined) {
               callback(new Error(`could not find service ${service}`), null);
               return;
         }
-        handler = handler[method]?.bind(handler);
-        if (handler === undefined) {
-              callback(new Error(`could not find method ${method}`), null);
-              return;
+        if (handler[method] === undefined) {
+          callback(new Error(`could not find method ${method}`), null);
+          return;
         }
+        handler = handler[method].bind(handler);
         handler(...body, callback);
       });
   });
