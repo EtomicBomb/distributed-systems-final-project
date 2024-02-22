@@ -8,7 +8,8 @@ function traverseNatives(object, seen, idToNative, nativeToId) {
     idToNative.set(id, object);
     nativeToId.set(object, id);
   }
-  for (const {value} of Object.values(Object.getOwnPropertyDescriptors(object))) {
+  const props = Object.getOwnPropertyDescriptors(object);
+  for (const {value} of Object.values(props)) {
     traverseNatives(value, seen, idToNative, nativeToId);
   }
 }
@@ -25,7 +26,10 @@ const formats = [
     de: (value, evil) => undefined,
   },
   {
-    matches: (o) => o === null || ['number', 'string', 'boolean'].includes(typeof o),
+    matches: (o) => {
+      return o === null ||
+            ['number', 'string', 'boolean'].includes(typeof o);
+    },
     kind: 'leaf',
     ser: (object) => object,
     de: (value, evil) => value,
@@ -62,12 +66,17 @@ const formats = [
   },
 ];
 
+function mapObject(object, func) {
+  const entries = Object.entries(object).map(([k, v]) => [k, func(v)]);
+  return Object.fromEntries(entries);
+}
+
 function serialize(object) {
   let idState = 0;
   const objectToReference = new Map();
   const idToObject = new Map();
   const encode = (object) => {
-    for (const {matches, kind, ser, de} of formats) {
+    for (const {matches, kind, ser} of formats) {
       if (matches(object)) {
         return {kind, value: ser(object)};
       }
@@ -81,7 +90,7 @@ function serialize(object) {
     objectToReference.set(object, reference);
     const represented = kind === 'array' ?
             {kind, value: object.map(encode)} :
-            {kind, value: Object.fromEntries(Object.entries(object).map(([k, v]) => [k, encode(v)]))};
+            {kind, value: mapObject(object, encode)};
     idToObject.set(id.toString(), represented);
     return reference;
   };
@@ -93,11 +102,11 @@ function serialize(object) {
 }
 
 function deserialize(string, evilMaybe) {
-    let evil = evilMaybe || eval;
+  let evil = evilMaybe || eval;
   const {idToObject, root} = JSON.parse(string);
   const cannonical = new Map();
   const decode = ({kind, value}) => {
-    for (const {matches, kind: k, ser, de} of formats) {
+    for (const {kind: k, de} of formats) {
       if (k === kind) {
         return de(value, evil);
       }
@@ -117,7 +126,7 @@ function deserialize(string, evilMaybe) {
       return value.map(decode);
     }
     if (kind === 'object') {
-      return Object.fromEntries(Object.entries(value).map(([s, v]) => [s, decode(v)]));
+      return mapObject(value, decode);
     }
   };
   return decode(root);

@@ -162,7 +162,6 @@ test('(5 pts) RPC', (done) => {
     routes.put(rpcService, 'rpcService', (e, v) => {
       routes.get('rpcService', (e, s) => {
         expect(e).toBeFalsy();
-        console.trace('tracing service', s.addOneRPC);
         s.addOneRPC((e, v) => {
           s.addOneRPC((e, v) => {
             s.addOneRPC((e, v) => {
