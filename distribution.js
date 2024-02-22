@@ -1,4 +1,4 @@
-#!/bin/node
+#!/usr/bin/env node
 
 global.config = global.config || require('./distribution/local/config');
 
@@ -15,5 +15,6 @@ module.exports = distribution;
 if (require.main === module) {
   distribution.node.start(() => {
     /* Code that runs after your node has booted */
+      console.log('started', global.config);
   });
 }
