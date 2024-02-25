@@ -84,7 +84,6 @@ const RPC = {
   get(installation) {
     return this.installed[installation];
   },
-
   call(args, installation, callback) {
     if (args === undefined || installation === undefined) {
       callback(new Error(`missing args or installation`), null);

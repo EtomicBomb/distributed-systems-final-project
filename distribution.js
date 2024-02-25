@@ -11,6 +11,7 @@ const distribution = {
 global.distribution = distribution;
 module.exports = distribution;
 
+
 /* The following code is run when distribution.js is run directly */
 if (require.main === module) {
   distribution.node.start(() => {
@@ -18,3 +19,5 @@ if (require.main === module) {
     console.log('started', global.config);
   });
 }
+
+
