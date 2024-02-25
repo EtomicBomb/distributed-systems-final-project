@@ -1,5 +1,5 @@
-const serialization = require('../util/serialization');
-const local = require('../local/local.js');
+const serialization = require('./serialization');
+const local = require('./local');
 
 function createRPC(func) {
   const installation = local.rpc.install(func);

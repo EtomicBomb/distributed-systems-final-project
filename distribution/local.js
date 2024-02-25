@@ -1,7 +1,7 @@
 const http = require('http');
 
-const serialization = require('../util/serialization');
-const id = require('../util/id');
+const serialization = require('./serialization');
+const id = require('./id');
 
 const node = global.config;
 

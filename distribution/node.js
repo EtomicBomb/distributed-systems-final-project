@@ -1,6 +1,6 @@
 const http = require('http');
-const serialization = require('../util/serialization');
-const local = require('../local/local.js');
+const serialization = require('./serialization');
+const local = require('./local');
 
 const start = function(started) {
   const server = http.createServer((req, res) => {

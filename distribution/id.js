@@ -1,5 +1,5 @@
 var crypto = require('crypto');
-var serialization = require('../util/serialization');
+var serialization = require('./serialization');
 
 // The ID is the SHA256 hash of the JSON representation of the object
 function getID(obj) {
