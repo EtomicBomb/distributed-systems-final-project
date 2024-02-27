@@ -33,7 +33,7 @@ function toAsync(func) {
       const result = func(...args);
       callback(null, result);
     } catch (error) {
-      callback(error);
+      callback(error, null);
     }
   };
 }

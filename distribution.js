@@ -40,7 +40,6 @@ const distribution = {
   util: require('./distribution/util'),
   local: require('./distribution/local'),
   node: require('./distribution/node'),
-  all: require('./distribution/all'),
 };
 
 global.distribution = distribution;

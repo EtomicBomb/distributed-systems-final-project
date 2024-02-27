@@ -38,22 +38,22 @@ const start = function(started) {
             callback(new Error(`could not parse json ${body}`), null);
             return;
           }
-          let handler;
-          handler = local[service];
-          if (handler === undefined) {
-            callback(new Error(`could not find service ${service}`), null);
-            return;
-          }
-          if (handler[method] === undefined) {
-            callback(new Error(`could not find method ${method}`), null);
-            return;
-          }
-          handler = handler[method].bind(handler);
-          handler(...body, callback);
+          local.routes.get(service, (e, service) => {
+            if (e) {
+              callback(e, null);
+              return;
+            }
+            if (service[method] === undefined) {
+              callback(new Error(`could not find method ${method}`), null);
+              return;
+            }
+            service[method].call(service, ...body, callback);
+          });
         });
   });
 
   server.listen(global.config.port, global.config.ip, () => {
+    local.status.registerServer(server);
     started(server);
   });
 };
