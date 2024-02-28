@@ -13,8 +13,8 @@ function Status(gidConfig) {
       subset: null,
       callback: (e, v) => {
         if (v === undefined || v === null) {
-            callback(e, null);
-            return;
+          callback(e, null);
+          return;
         }
         const shouldAggregate = ['counts', 'heapTotal', 'heapUsed']
             .includes(installation);
@@ -35,21 +35,25 @@ function Status(gidConfig) {
       subset: null,
       callback: (e, v) => {
         if (e) {
-            callback(e, null);
-            return;
+          callback(e, null);
+          return;
         }
-          global.distribution.local.status.stop(callback);
+        global.distribution.local.status.stop(callback);
       },
     });
   };
-  this.spawn = (config, callbabck) => {
+  this.spawn = (config, callback) => {
     global.distribution.local.status.spawn(config, (e, node) => {
-        if (e) {
-            callback(e, null);
-            return;
+      if (e) {
+        callback(e, null);
+        return;
+      }
+      const gid = gidConfig.gid;
+      global.distribution.all.groups(gidConfig).add(gid, node, (e, v) => {
+        if (Object.keys(e).length > 0) {
+          callback(e, null);
         }
-      global.distribution.all.groups(gidConfig).add(node, (e, v) => {
-        callback(e, node);
+        callback(null, node);
       });
     });
   };

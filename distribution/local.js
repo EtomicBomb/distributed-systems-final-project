@@ -41,11 +41,10 @@ function Status() {
       callback(new Error('no server running'), null);
       return;
     }
-    callback(null, 'shutting down');
-    const onClose = () => null; // could do something here
+    this.server.close();
     setTimeout(() => {
-      this.server.close(onClose);
-    }, 500); // could probably be 0
+      callback(null, global.nodeConfig);
+    }, 100); // give the server enough time to close
   };
   this.spawn = (config, callback) => {
     config = config || {};
@@ -53,7 +52,7 @@ function Status() {
     const localOnStart = config.onStart || function() {};
     const localCallback = callback || function() {};
     config.onStart = wire.createRPC(wire.toAsync((server, node) => {
-        global.distribution.local.groups.registerKnownNode(node);
+      global.distribution.local.groups.registerKnownNode(node);
       localOnStart();
       localCallback(null, node);
     }));
@@ -69,10 +68,10 @@ function Status() {
 function Groups() {
   this.gidToGroup = new Map();
   this.all = {};
-    this.registerKnownNode = (node) => {
-        this.all[id.getSID(node)] = node;
-    }
-    this.registerKnownNode(global.nodeConfig); 
+  this.registerKnownNode = (node) => {
+    this.all[id.getSID(node)] = node;
+  };
+  this.registerKnownNode(global.nodeConfig);
   this.get = (gid, callback) => {
     if (gid === 'local') {
       callback(null, {[id.getSID(global.nodeConfig)]: global.nodeConfig});
@@ -85,7 +84,7 @@ function Groups() {
     let group = this.gidToGroup.get(gid);
     if (group === undefined) {
       callback(new Error(`could not find: ${gid}`, null));
-        return;
+      return;
     }
     callback(null, group);
   };
@@ -101,7 +100,6 @@ function Groups() {
               .map(([k, v]) => [k, v({gid})]),
       );
     }
-    console.trace('put callback', callback);
     callback(null, found);
   };
   this.add = (gid, node, callback) => {
@@ -117,11 +115,11 @@ function Groups() {
     callback(null, removeFrom);
   };
   this.del = (gid, callback) => {
-      const group = this.gidToGroup.get(gid);
-      if (group === undefined) {
-    callback(new Error(`group ${gid} does not exist`), null);
-          return;
-      }
+    const group = this.gidToGroup.get(gid);
+    if (group === undefined) {
+      callback(new Error(`group ${gid} does not exist`), null);
+      return;
+    }
     this.gidToGroup.delete(gid);
     callback(null, group);
   };
@@ -134,7 +132,8 @@ function Gossip() {
       return;
     }
     this.received.add(mid);
-    local.routes.get(service, (e, service) => {
+
+    global.distribution.local.routes.get(service, (e, service) => {
       if (e) {
         callback(e, null);
         return;
@@ -143,6 +142,7 @@ function Gossip() {
         callback(new Error(`could not find method ${method}`), null);
         return;
       }
+//        global.distribution.all.gossip(gidConfig).send(message, {service, method}, () => {});
       service[method].call(service, ...message, callback);
     });
   };
@@ -179,23 +179,23 @@ function Comm() {
       method: 'POST',
       headers: {'Content-type': 'application/json'},
     };
-      let errorFlag = false;
+    let errorFlag = false;
     const req = http.request(options, (res) => {
       let body = [];
       res.on('data', (chunk) => {
         body.push(chunk);
       });
       res.on('end', () => {
-          if (errorFlag) {
-              return;
-          }
+        if (errorFlag) {
+          return;
+        }
         body = Buffer.concat(body).toString();
         callback(...serialization.deserialize(body));
       });
     });
     req.on('error', (e) => {
-        errorFlag = true;
-        callback(new Error('request send error', {cause: e}), null);
+      errorFlag = true;
+      callback(new Error('request send error', {cause: e}), null);
       console.trace('request send error', e);
     });
     req.write(serialization.serialize(message));

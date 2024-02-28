@@ -54,7 +54,11 @@ const start = function(started) {
 
   server.listen(global.nodeConfig.port, global.nodeConfig.ip, () => {
     local.status.registerServer(server);
-    started(server, global.nodeConfig, (...args) => console.trace('trace start', ...args));
+    started(
+        server,
+        global.nodeConfig,
+        (...args) => console.trace('trace start', ...args),
+    );
   });
 };
 

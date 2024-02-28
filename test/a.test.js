@@ -4,7 +4,7 @@ const id = distribution.util.id;
 
 const groupsTemplate = require('../distribution/all/groups');
 const mygroupGroup = {};
-let localServer = null;
+// let localServer = null;
 
 beforeAll((done) => {
   const n1 = {ip: '127.0.0.1', port: 8000};
@@ -36,7 +36,6 @@ beforeAll((done) => {
         distribution.local.status.spawn(n3, (e, v) => {
           groupsTemplate({gid: 'mygroup'})
               .put('mygroup', mygroupGroup, (e, v) => {
-                console.trace('local groups', e, v, distribution.local.groups);
                 done();
               });
         });
@@ -45,7 +44,6 @@ beforeAll((done) => {
   });
 });
 
-/*
 test('(4 pts) all.comm.send(status.get(nid))', (done) => {
   const nids = Object.values(mygroupGroup).map((node) => id.getNID(node));
   const remote = {service: 'status', method: 'get'};
@@ -274,7 +272,6 @@ test('(2 pts) all.status.get(random)', (done) => {
     done();
   });
 });
-*/
 test('(2 pts) all.status.spawn/stop()', (done) => {
   // Spawn a node
   const nodeToSpawn = {ip: '127.0.0.1', port: 8008};
@@ -312,6 +309,7 @@ test('(2 pts) all.status.spawn/stop()', (done) => {
           // Ping the node again, it shouldn't respond
           distribution.local.comm.send(message,
               remote, (e, v) => {
+                console.trace('test result', e, v);
                 expect(e).toBeDefined();
                 expect(e).toBeInstanceOf(Error);
                 expect(v).toBeFalsy();
@@ -323,3 +321,28 @@ test('(2 pts) all.status.spawn/stop()', (done) => {
   });
 });
 
+test('(6 pts) all.gossip.send()', (done) => {
+  distribution.mygroup.groups.put('newgroup', {}, (e, v) => {
+    let newNode = {ip: '127.0.0.1', port: 4444};
+    let message = [
+      'newgroup',
+      newNode,
+    ];
+      
+
+    let remote = {service: 'groups', method: 'add'};
+    distribution.mygroup.gossip.send(message, remote, (e, v) => {
+      distribution.mygroup.groups.get('newgroup', (e, v) => {
+        let count = 0;
+        for (const k in v) {
+          if (Object.keys(v[k]).length > 0) {
+            count++;
+          }
+        }
+        /* Gossip only provides weak guarantees */
+        expect(count).toBeGreaterThanOrEqual(2);
+        done();
+      });
+    });
+  });
+});

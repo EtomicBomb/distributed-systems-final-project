@@ -16,7 +16,6 @@ function Groups(gidConfig) {
   };
   this.put = (...args) => {
     const callback = args.pop() || function() {};
-    console.trace('put', callback);
     util.sendToAll({
       message: args,
       service: 'groups',

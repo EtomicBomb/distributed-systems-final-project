@@ -15,7 +15,6 @@ function sendToAll({message, service, method, callback, gid, exclude, subset}) {
     return;
   }
   distribution.local.groups.get(gid, (e, nodes) => {
-      console.trace(nodes);
     nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
     if (subset) {
       const newNodes = [];
@@ -33,7 +32,6 @@ function sendToAll({message, service, method, callback, gid, exclude, subset}) {
       callback(sidToError, sidToValue);
       return;
     }
-      console.trace(nodes);
     for (const node of nodes) {
       const sid = id.getSID(node);
       distribution.local.comm.send(message, {node, service, method}, (e, v) => {
