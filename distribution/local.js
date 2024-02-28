@@ -1,4 +1,5 @@
 const http = require('http');
+const path = require('node:path');
 const process = require('node:process');
 const childProcess = require('node:child_process');
 
@@ -44,6 +45,7 @@ function Status() {
     this.server.close();
     setTimeout(() => {
       callback(null, global.nodeConfig);
+        process.stop();
     }, 100); // give the server enough time to close
   };
   this.spawn = (config, callback) => {
@@ -57,7 +59,8 @@ function Status() {
       localCallback(null, node);
     }));
     config = serialization.serialize(config);
-    childProcess.spawn('./distribution.js', ['--config', config], {
+  const correctPath = path.join(__dirname, '../distribution.js');
+    childProcess.spawn(correctPath, ['--config', config], {
       stdio: 'inherit',
     }).on('error', (e) => {
       console.error('spawn error', e);
