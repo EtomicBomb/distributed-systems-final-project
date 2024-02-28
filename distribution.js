@@ -36,10 +36,12 @@ if (args.config) {
         nodeConfig.onStart : global.nodeConfig.onStart;
 }
 
+
 const distribution = {
   util: require('./distribution/util'),
   local: require('./distribution/local'),
   node: require('./distribution/node'),
+  all: require('./distribution/all/index'),
 };
 
 global.distribution = distribution;

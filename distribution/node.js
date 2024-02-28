@@ -52,9 +52,9 @@ const start = function(started) {
         });
   });
 
-  server.listen(global.config.port, global.config.ip, () => {
+  server.listen(global.nodeConfig.port, global.nodeConfig.ip, () => {
     local.status.registerServer(server);
-    started(server);
+    started(server, global.nodeConfig, (...args) => console.trace('trace start', ...args));
   });
 };
 

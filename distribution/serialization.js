@@ -103,8 +103,8 @@ function serialize(object) {
   });
 }
 
-function deserialize(string, evilMaybe) {
-  let evil = evilMaybe || eval;
+function deserialize(string, evil) {
+  evil = evil || eval;
   const {idToObject, root} = JSON.parse(string);
   const cannonical = new Map();
   const decode = ({kind, value}) => {

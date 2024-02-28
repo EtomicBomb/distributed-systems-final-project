@@ -9,7 +9,8 @@ function getID(obj) {
 }
 
 // The NID is the SHA256 hash of the JSON representation of the node
-function getNID(node) {
+function getNID({ip, port}) {
+  const node = {ip, port};
   const hash = crypto.createHash('sha256');
   hash.update(serialization.serialize(node));
   return hash.digest('hex');
