@@ -14,6 +14,7 @@ function sendToAll({message, service, method, callback, gid, exclude, subset}) {
     callback(new Error(`missing node, service, or method`), null);
     return;
   }
+    console.trace('trying to send', message);
   distribution.local.groups.get(gid, (e, nodes) => {
     nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
     if (subset) {

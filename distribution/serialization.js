@@ -48,7 +48,7 @@ const formats = [
         return idToNative.get(value);
       }
       if (scope === 'defined') {
-        value = value.replace(/^\w+/, 'function');
+        value = value.replace(/^\w+\(/, 'function(');
         value = `(${value})`;
         return evil(value);
       }

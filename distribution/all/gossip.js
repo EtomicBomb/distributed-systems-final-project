@@ -4,13 +4,15 @@ const crypto = require('node:crypto');
 function Gossip(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
   this.send = (message, finalRemote, callback) => {
-    message = [crypto.randomUUID(), finalRemote, message];
-    const service = 'gossip';
-    const method = 'recv';
-    const gid = gidConfig.gid;
-    const subset = gidConfig.subset;
-    const exclude = null;
-    util.sendToAll({message, service, method, callback, gid, exclude, subset});
+    util.sendToAll({
+        message: [crypto.randomUUID(), finalRemote, message, gidConfig], 
+        service: 'gossip', 
+        method: 'recv', 
+        callback, 
+        gid: gidConfig.gid, 
+        exclude: null, 
+        subset: gidConfig.subset,
+    });
   };
   this.at = (periodMillis, rpc, callback) => {
     const intervalID = setInterval(() => {

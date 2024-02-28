@@ -35,7 +35,7 @@ const start = function(started) {
           try {
             body = serialization.deserialize(body);
           } catch (e) {
-            callback(new Error(`could not parse json ${body}`), null);
+            callback(new Error(`could not parse json ${body}: ${e}`), null);
             return;
           }
           local.routes.get(service, (e, service) => {

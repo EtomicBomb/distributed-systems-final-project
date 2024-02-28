@@ -45,7 +45,7 @@ function Status() {
     this.server.close();
     setTimeout(() => {
       callback(null, global.nodeConfig);
-        process.stop();
+        process.exit();
     }, 100); // give the server enough time to close
   };
   this.spawn = (config, callback) => {
@@ -130,12 +130,11 @@ function Groups() {
 
 function Gossip() {
   this.received = new Set();
-  this.recv = (mid, {service, method}, message, callback) => {
+  this.recv = (mid, {service, method}, message, gidConfig, callback) => {
     if (this.received.has(mid)) {
       return;
     }
     this.received.add(mid);
-
     global.distribution.local.routes.get(service, (e, service) => {
       if (e) {
         callback(e, null);
@@ -145,7 +144,7 @@ function Gossip() {
         callback(new Error(`could not find method ${method}`), null);
         return;
       }
-//        global.distribution.all.gossip(gidConfig).send(message, {service, method}, () => {});
+        global.distribution.all.gossip(gidConfig).send(message, {service, method}, () => {});
       service[method].call(service, ...message, callback);
     });
   };
