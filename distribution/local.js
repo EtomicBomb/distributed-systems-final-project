@@ -45,7 +45,7 @@ function Status() {
     this.server.close();
     setTimeout(() => {
       callback(null, global.nodeConfig);
-        process.exit();
+      process.exit();
     }, 100); // give the server enough time to close
   };
   this.spawn = (config, callback) => {
@@ -59,7 +59,7 @@ function Status() {
       localCallback(null, node);
     }));
     config = serialization.serialize(config);
-  const correctPath = path.join(__dirname, '../distribution.js');
+    const correctPath = path.join(__dirname, '../distribution.js');
     childProcess.spawn(correctPath, ['--config', config], {
       stdio: 'inherit',
     }).on('error', (e) => {
@@ -144,7 +144,8 @@ function Gossip() {
         callback(new Error(`could not find method ${method}`), null);
         return;
       }
-        global.distribution.all.gossip(gidConfig).send(message, {service, method}, () => {});
+      global.distribution.all.gossip(gidConfig)
+          .send(message, {service, method}, () => {});
       service[method].call(service, ...message, callback);
     });
   };

@@ -49,7 +49,7 @@ test('(4 pts) all.comm.send(status.get(nid))', (done) => {
   const remote = {service: 'status', method: 'get'};
 
   distribution.mygroup.comm.send(['nid'], remote, (e, v) => {
-      console.trace(e, v);
+    console.trace(e, v);
     expect(e).toEqual({});
     expect(Object.values(v).length).toBe(nids.length);
     expect(Object.values(v)).toEqual(expect.arrayContaining(nids));
@@ -61,7 +61,7 @@ test('(4 pts) all.comm.send(status.get(nid))', (done) => {
   const remote = {service: 'status', method: 'get'};
 
   distribution.mygroup.comm.send(['nid'], remote, (e, v) => {
-      console.trace(e, v);
+    console.trace(e, v);
     expect(e).toEqual({});
     expect(Object.values(v).length).toBe(nids.length);
     expect(Object.values(v)).toEqual(expect.arrayContaining(nids));
@@ -115,7 +115,7 @@ test('(2 pts) all.groups.put/get(browncs)', (done) => {
   };
 
   distribution.mygroup.groups.put('browncs', g, (e, v) => {
-      console.trace('x', e, v);
+    console.trace('x', e, v);
     distribution.mygroup.groups.get('browncs', (e, v) => {
       console.trace('y', e, v);
       expect(e).toEqual({});
@@ -156,7 +156,7 @@ test('(2 pts) all.groups.put/get/del/get(browncs)', (done) => {
     distribution.mygroup.groups.get('browncs', (e, v) => {
       distribution.mygroup.groups.del('browncs', (e, v) => {
         distribution.mygroup.groups.get('browncs', (e, v) => {
-            console.trace('our test', e, v);
+          console.trace('our test', e, v);
           expect(e).toBeDefined();
           Object.keys(mygroupGroup).forEach((sid) => {
             expect(e[sid]).toBeInstanceOf(Error);
@@ -254,7 +254,7 @@ test('(2 pts) all.status.get(nid)', (done) => {
   const nids = Object.values(mygroupGroup).map((node) => id.getNID(node));
 
   distribution.mygroup.status.get('nid', (e, v) => {
-      console.trace('our test', e, v);
+    console.trace('our test', e, v);
     expect(e).toEqual({});
     expect(Object.values(v).length).toBe(nids.length);
     expect(Object.values(v)).toEqual(expect.arrayContaining(nids));
@@ -328,7 +328,7 @@ test('(6 pts) all.gossip.send()', (done) => {
       'newgroup',
       newNode,
     ];
-      
+
 
     let remote = {service: 'groups', method: 'add'};
     distribution.mygroup.gossip.send(message, remote, (e, v) => {

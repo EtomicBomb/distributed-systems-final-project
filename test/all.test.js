@@ -342,7 +342,7 @@ test('(6 pts) all.gossip.send()', (done) => {
 
     let remote = {service: 'groups', method: 'add'};
     distribution.mygroup.gossip.send(message, remote, (e, v) => {
-          console.trace(e, v);
+      console.trace(e, v);
       distribution.mygroup.groups.get('newgroup', (e, v) => {
         let count = 0;
         for (const k in v) {

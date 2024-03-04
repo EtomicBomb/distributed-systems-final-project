@@ -5,13 +5,13 @@ function Gossip(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
   this.send = (message, finalRemote, callback) => {
     util.sendToAll({
-        message: [crypto.randomUUID(), finalRemote, message, gidConfig], 
-        service: 'gossip', 
-        method: 'recv', 
-        callback, 
-        gid: gidConfig.gid, 
-        exclude: null, 
-        subset: gidConfig.subset,
+      message: [crypto.randomUUID(), finalRemote, message, gidConfig],
+      service: 'gossip',
+      method: 'recv',
+      callback,
+      gid: gidConfig.gid,
+      exclude: null,
+      subset: gidConfig.subset,
     });
   };
   this.at = (periodMillis, rpc, callback) => {
