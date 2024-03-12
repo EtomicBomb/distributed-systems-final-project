@@ -52,6 +52,7 @@ function Status(gidConfig) {
       global.distribution.all.groups(gidConfig).add(gid, node, (e, v) => {
         if (Object.keys(e).length > 0) {
           callback(e, null);
+          return;
         }
         callback(null, node);
       });

@@ -2,10 +2,15 @@ const serialization = require('./serialization');
 const id = require('./id');
 const wire = require('./wire');
 
+function getActualKey(key, value) {
+  return key === null ? id.getID(value) : key;
+}
+
 function defaultGIDConfig(gidConfig) {
   gidConfig = gidConfig || {};
   gidConfig.gid = gidConfig.gid || 'all';
   gidConfig.subset = gidConfig.subset || ((lst) => 3);
+  gidConfig.hash = gidConfig.hash || id.naiveHash;
   return gidConfig;
 }
 
@@ -14,7 +19,7 @@ function sendToAll({message, service, method, callback, gid, exclude, subset}) {
     callback(new Error(`missing node, service, or method`), null);
     return;
   }
-  console.trace('trying to send', message);
+  //  console.trace('trying to send', message);
   distribution.local.groups.get(gid, (e, nodes) => {
     nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
     if (subset) {
@@ -57,6 +62,7 @@ module.exports = {
   deserialize: serialization.deserialize,
   defaultGIDConfig,
   sendToAll,
+  getActualKey,
   id: id,
   wire: wire,
 };

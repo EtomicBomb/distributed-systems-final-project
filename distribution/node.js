@@ -23,7 +23,7 @@ const start = function(started) {
       return;
     }
 
-    [_, service, method] = serviceMethod;
+    [, service, method] = serviceMethod;
 
     let body = [];
     req

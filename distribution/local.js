@@ -2,10 +2,12 @@ const http = require('http');
 const path = require('node:path');
 const process = require('node:process');
 const childProcess = require('node:child_process');
+const fs = require('node:fs');
 
 const serialization = require('./serialization');
 const id = require('./id');
 const wire = require('./wire');
+const util = require('./util');
 
 const routes = {};
 
@@ -86,27 +88,34 @@ function Groups() {
     }
     let group = this.gidToGroup.get(gid);
     if (group === undefined) {
-      callback(new Error(`could not find: ${gid}`, null));
+      callback(new Error(`get: could not find: ${gid}`, null));
       return;
     }
     callback(null, group);
   };
+  this.putInDistribution = (gid) => {
+    if (global.distribution[gid] !== undefined) {
+      return;
+    }
+    global.distribution[gid] = Object.fromEntries(
+        Object.entries(global.distribution.all)
+            .map(([k, v]) => [k, v({gid})]),
+    );
+  };
   this.put = (gid, group, callback) => {
-    if (!this.gidToGroup.has(gid)) {
-      this.gidToGroup.set(gid, {});
-    }
-    let found = this.gidToGroup.get(gid);
-    Object.assign(found, group);
-    if (global.distribution[gid] === undefined) {
-      global.distribution[gid] = Object.fromEntries(
-          Object.entries(global.distribution.all)
-              .map(([k, v]) => [k, v({gid})]),
-      );
-    }
-    callback(null, found);
+    gid = gid.gid || gid;
+    this.gidToGroup.set(gid, group);
+    this.putInDistribution(gid);
+    callback(null, group);
   };
   this.add = (gid, node, callback) => {
-    this.put(gid, {[id.getSID(node)]: node}, callback);
+    if (!this.gidToGroup.has(gid)) {
+      this.gidToGroup.set(gid, {});
+      this.putInDistribution(gid);
+    }
+    const group = this.gidToGroup.get(gid);
+    group[id.getSID(node)] = node;
+    callback(null, group);
   };
   this.rem = (gid, sid, callback) => {
     const removeFrom = this.gidToGroup.get(gid);
@@ -197,6 +206,9 @@ function Comm() {
       });
     });
     req.on('error', (e) => {
+      if (errorFlag) {
+        return;
+      }
       errorFlag = true;
       callback(new Error('request send error', {cause: e}), null);
       console.trace('request send error', e);
@@ -224,11 +236,106 @@ function RPC() {
   };
 };
 
+function Mem() {
+  this.store = new Map();
+  this.gidKey = (gidKey) => {
+    const gid = gidKey.gid === undefined ? 'all' : gidKey.gid;
+    const key = gidKey.key === undefined ? gidKey : gidKey.key;
+    return {gid, key};
+  };
+  this.get = (gidKey, callback) => {
+    const {gid, key} = this.gidKey(gidKey);
+    if (!this.store.has(gid)) {
+      callback(new Error(`could not find gid ${gid}`), null);
+      return;
+    }
+    const gidStore = this.store.get(gid);
+    if (key === null) {
+      callback(null, [...gidStore.keys()]);
+      return;
+    }
+    if (!gidStore.has(key)) {
+      callback(new Error(`could not find key ${key}`), null);
+      return;
+    }
+    callback(null, gidStore.get(key));
+  };
+  this.put = (value, gidKey, callback) => {
+    const {gid, key} = this.gidKey(gidKey);
+    key = util.getActualKey(key, value);
+    if (!this.store.has(gid)) {
+      this.store.set(gid, new Map());
+    }
+    this.store.get(gid).set(key, value);
+    callback(null, key);
+  };
+  this.del = (gidKey, callback) => {
+    const {gid, key} = this.gidKey(gidKey);
+    if (!this.store.has(gid)) {
+      callback(new Error(`could not find gid ${gid}`), null);
+      return;
+    }
+    const actuallyRemoved = this.store.get(gid).delete(key);
+    if (!actuallyRemoved) {
+      callback(new Error(`could not find ${key}`), null);
+      return;
+    }
+    callback(null, null);
+  };
+}
+
+function Store() {
+  const head = path.join(
+      __dirname,
+      '..',
+      'store',
+      id.getNID(global.nodeConfig),
+  );
+  fs.mkdirSync(head, {recursive: true});
+  this.getLocation = (key) => {
+    let gid = key.gid === undefined ? 'all' : key.gid;
+    key = key.key === undefined ? key : key.key;
+    key = Buffer.from(key).toString('hex');
+    return path.join(head, gid, key);
+  };
+  this.get = (key, callback) => {
+    fs.readFile(this.getLocation(key), (err, value) => {
+      if (err) {
+        callback(new Error(`could not get ${key}`, {cause: err}), null);
+        return;
+      }
+      callback(null, serialization.deserialize(value));
+    });
+  };
+  this.put = (value, key, callback) => {
+    key = util.getActualKey(key, value);
+    value = serialization.serialize(value);
+    fs.writeFile(this.getLocation(key), value, (err) => {
+      if (err) {
+        callback(new Error(`could not put ${key}`, {cause: err}), null);
+        return;
+      }
+      callback(null, key);
+    });
+  };
+  this.del = (key, callback) => {
+    fs.unlink(this.getLocation(key), (err) => {
+      if (err) {
+        callback(new Error(`could not delete ${key}`, {cause: err}), null);
+        return;
+      }
+      callback(null, null);
+    });
+  };
+}
+
 routes.status = new Status();
 routes.groups = new Groups();
 routes.gossip = new Gossip();
 routes.routes = new Routes();
 routes.comm = new Comm();
 routes.rpc = new RPC();
+routes.mem = new Mem();
+routes.store = new Store();
 
 module.exports = routes;
