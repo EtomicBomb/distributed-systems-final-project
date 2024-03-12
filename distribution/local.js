@@ -78,6 +78,7 @@ function Groups() {
   };
   this.registerKnownNode(global.nodeConfig);
   this.get = (gid, callback) => {
+      callback = callback || function() {};
     if (gid === 'local') {
       callback(null, {[id.getSID(global.nodeConfig)]: global.nodeConfig});
       return;
@@ -118,6 +119,7 @@ function Groups() {
     callback(null, group);
   };
   this.rem = (gid, sid, callback) => {
+      callback = callback || function() {};
     const removeFrom = this.gidToGroup.get(gid);
     if (removeFrom === undefined) {
       callback(new Error(`could not find: ${gid}`, null));
