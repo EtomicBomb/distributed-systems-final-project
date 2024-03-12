@@ -49,7 +49,8 @@ function Status(gidConfig) {
         return;
       }
       const gid = gidConfig.gid;
-      global.distribution.all.groups(gidConfig).add(gid, node, (e, v) => {
+        require('../../distribution/all/groups')(gidConfig)
+            .add(gid, node, (e, v) => {
         if (Object.keys(e).length > 0) {
           callback(e, null);
           return;

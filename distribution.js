@@ -41,12 +41,13 @@ const distribution = {
   util: require('./distribution/util'),
   local: require('./distribution/local'),
   node: require('./distribution/node'),
-  all: require('./distribution/all/index'),
 };
 
 global.distribution = distribution;
 
 module.exports = distribution;
+
+global.distribution.local.groups.putInDistribution('all');
 
 /* The following code is run when distribution.js is run directly */
 if (require.main === module) {

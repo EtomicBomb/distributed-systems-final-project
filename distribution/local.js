@@ -99,17 +99,19 @@ function Groups() {
       return;
     }
     global.distribution[gid] = Object.fromEntries(
-        Object.entries(global.distribution.all)
+        Object.entries(require('../distribution/all'))
             .map(([k, v]) => [k, v({gid})]),
     );
   };
   this.put = (gid, group, callback) => {
+      callback = callback || function() {};
     gid = gid.gid || gid;
     this.gidToGroup.set(gid, group);
     this.putInDistribution(gid);
     callback(null, group);
   };
   this.add = (gid, node, callback) => {
+      callback = callback || function() {};
     if (!this.gidToGroup.has(gid)) {
       this.gidToGroup.set(gid, {});
       this.putInDistribution(gid);
@@ -129,6 +131,7 @@ function Groups() {
     callback(null, removeFrom);
   };
   this.del = (gid, callback) => {
+      callback = callback || function() {};
     const group = this.gidToGroup.get(gid);
     if (group === undefined) {
       callback(new Error(`group ${gid} does not exist`), null);
@@ -155,7 +158,8 @@ function Gossip() {
         callback(new Error(`could not find method ${method}`), null);
         return;
       }
-      global.distribution.all.gossip(gidConfig)
+        require('../distribution/all/gossip')(gidConfig)
+//      global.distribution.all.gossip(gidConfig)
           .send(message, {service, method}, () => {});
       service[method].call(service, ...message, callback);
     });
@@ -213,7 +217,6 @@ function Comm() {
       }
       errorFlag = true;
       callback(new Error('request send error', {cause: e}), null);
-      console.trace('request send error', e);
     });
     req.write(serialization.serialize(message));
     req.end();
@@ -263,13 +266,13 @@ function Mem() {
     callback(null, gidStore.get(key));
   };
   this.put = (value, gidKey, callback) => {
-    const {gid, key} = this.gidKey(gidKey);
+    let {gid, key} = this.gidKey(gidKey);
     key = util.getActualKey(key, value);
     if (!this.store.has(gid)) {
       this.store.set(gid, new Map());
     }
     this.store.get(gid).set(key, value);
-    callback(null, key);
+    callback(null, value);
   };
   this.del = (gidKey, callback) => {
     const {gid, key} = this.gidKey(gidKey);
@@ -317,7 +320,7 @@ function Store() {
         callback(new Error(`could not put ${key}`, {cause: err}), null);
         return;
       }
-      callback(null, key);
+      callback(null, value);
     });
   };
   this.del = (key, callback) => {

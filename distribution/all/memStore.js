@@ -33,6 +33,7 @@ function MemStore(service, gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
   this.get = (key, callback) => {
       // if key is null, then run it for all node in the group
+      // pass in the context from gidConfig
     callOnHolder({
       key,
       value: null,
