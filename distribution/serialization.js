@@ -66,12 +66,6 @@ const formats = [
     ser: (object) => ({message: object.message, cause: object.cause}),
     de: ({message, cause}, evil) => new Error(message, {cause}),
   },
-  {
-    matches: (object) => object.name === '',
-    kind: 'rendezvousHash',
-    ser: (object) => ({message: object.message, cause: object.cause}),
-    de: ({message, cause}, evil) => new Error(message, {cause}),
-  },
 ];
 
 function mapObject(object, func) {
