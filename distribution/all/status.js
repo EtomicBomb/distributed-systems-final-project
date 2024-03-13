@@ -1,5 +1,4 @@
-const util = require('../util');
-const id = require('../id');
+const util = require('../util/util');
 
 function Status(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
@@ -31,7 +30,7 @@ function Status(gidConfig) {
       service: 'status',
       method: 'stop',
       gid: gidConfig.gid,
-      exclude: id.getSID(global.nodeConfig),
+      exclude: util.id.getSID(global.nodeConfig),
       subset: null,
       callback: (e, v) => {
         if (e) {

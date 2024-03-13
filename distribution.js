@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const util = require('./distribution/util.js');
+const util = require('./distribution/util/util.js');
 const args = require('yargs').argv;
 
 // Default configuration
@@ -38,7 +38,7 @@ if (args.config) {
 
 
 const distribution = {
-  util: require('./distribution/util'),
+  util: require('./distribution/util/util.js'),
   local: require('./distribution/local'),
   node: require('./distribution/node'),
 };

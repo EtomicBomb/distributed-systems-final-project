@@ -1,12 +1,12 @@
-const http = require('http');
-const serialization = require('./serialization');
+const http = require('node:http');
 const local = require('./local');
+const util = require('./util/util');
 
 const start = function(started) {
   const server = http.createServer((req, res) => {
     const callback = (e, v) => {
       res.writeHead(400, {'Content-Type': 'application/json'});
-      res.end(serialization.serialize([e, v]));
+      res.end(util.serialize([e, v]));
     };
 
     if (req.method !== 'POST') {
@@ -33,7 +33,7 @@ const start = function(started) {
         .on('end', function() {
           body = Buffer.concat(body).toString();
           try {
-            body = serialization.deserialize(body, expr => eval(expr));
+            body = util.deserialize(body, expr => eval(expr));
           } catch (e) {
             callback(new Error(`could not parse json ${body}: ${e}`), null);
             return;

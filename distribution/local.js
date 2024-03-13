@@ -4,10 +4,7 @@ const process = require('node:process');
 const childProcess = require('node:child_process');
 const fs = require('node:fs');
 
-const serialization = require('./serialization');
-const id = require('./id');
-const wire = require('./wire');
-const util = require('./util');
+const util = require('./util/util.js');
 
 const routes = {};
 
@@ -23,8 +20,8 @@ function Status() {
   this.get = (installation, callback) => {
     let getter;
     getter = {
-      nid: () => id.getNID(global.nodeConfig),
-      sid: () => id.getSID(global.nodeConfig),
+      nid: () => util.id.getNID(global.nodeConfig),
+      sid: () => util.id.getSID(global.nodeConfig),
       ip: () => global.nodeConfig.ip,
       port: () => global.nodeConfig.port,
       counts: () => this.counts,
@@ -55,12 +52,12 @@ function Status() {
     //    const localConfig = {ip: config.ip, port: config.port};
     const localOnStart = config.onStart || function() {};
     const localCallback = callback || function() {};
-    config.onStart = wire.createRPC(wire.toAsync((server, node) => {
+    config.onStart = util.wire.createRPC(util.wire.toAsync((server, node) => {
       global.distribution.local.groups.registerKnownNode(node);
       localOnStart();
       localCallback(null, node);
     }));
-    config = serialization.serialize(config);
+    config = util.serialize(config);
     const correctPath = path.join(__dirname, '../distribution.js');
     childProcess.spawn(correctPath, ['--config', config], {
       stdio: 'inherit',
@@ -74,13 +71,13 @@ function Groups() {
   this.gidToGroup = new Map();
   this.all = {};
   this.registerKnownNode = (node) => {
-    this.all[id.getSID(node)] = node;
+    this.all[util.id.getSID(node)] = node;
   };
   this.registerKnownNode(global.nodeConfig);
   this.get = (gid, callback) => {
     callback = callback || function() {};
     if (gid === 'local') {
-      callback(null, {[id.getSID(global.nodeConfig)]: global.nodeConfig});
+      callback(null, {[util.id.getSID(global.nodeConfig)]: global.nodeConfig});
       return;
     }
     if (gid === 'all') {
@@ -119,7 +116,7 @@ function Groups() {
       this.putInDistribution(gidConfig);
     }
     const group = this.gidToGroup.get(gid);
-    group[id.getSID(node)] = node;
+    group[util.id.getSID(node)] = node;
     callback(null, group);
   };
   this.rem = (gid, sid, callback) => {
@@ -210,7 +207,7 @@ function Comm() {
           return;
         }
         body = Buffer.concat(body).toString();
-        callback(...serialization.deserialize(body, expr => eval(expr)));
+        callback(...util.deserialize(body, expr => eval(expr)));
       });
     });
     req.on('error', (e) => {
@@ -220,7 +217,7 @@ function Comm() {
       errorFlag = true;
       callback(new Error('request send error', {cause: e}), null);
     });
-    req.write(serialization.serialize(message));
+    req.write(util.serialize(message));
     req.end();
   };
 }
@@ -318,7 +315,7 @@ function Store() {
       callback(null, v);
     });
   };
-  const nid = id.getNID(global.nodeConfig);
+  const nid = util.id.getNID(global.nodeConfig);
   this.getLocation = (key, gid, create) => {
     key = Buffer.from(key).toString('hex');
     const head = path.join(
@@ -344,7 +341,7 @@ function Store() {
         callback(new Error(`could not get ${key}`, {cause: err}), null);
         return;
       }
-      callback(null, serialization.deserialize(value, expr => eval(expr)));
+      callback(null, util.deserialize(value, expr => eval(expr)));
     });
   };
   this.put = (value, gidKey, callback) => {
@@ -352,7 +349,7 @@ function Store() {
     key = util.getActualKey(key, value);
     fs.writeFile(
         this.getLocation(key, gid, true),
-        serialization.serialize(value),
+        util.serialize(value),
         (err) => {
           if (err) {
             console.trace(err);

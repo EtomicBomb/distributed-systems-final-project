@@ -1,5 +1,4 @@
-const util = require('../util');
-const id = require('../id');
+const util = require('../util/util');
 const crypto = require('node:crypto');
 
 function callOnHolder(
@@ -12,10 +11,10 @@ function callOnHolder(
     }
 
     nodes = Object.values(nodes);
-    nodes = nodes.map((node) => [id.getNID(node), node]);
+    nodes = nodes.map((node) => [util.id.getNID(node), node]);
     nodes = Object.fromEntries(nodes);
 
-      const kid = id.getID(value === null ? key : util.getActualKey(key, value));
+      const kid = util.id.getID(value === null ? key : util.getActualKey(key, value));
 
       const nid = hash(kid, Object.keys(nodes));
     const node = nodes[nid];

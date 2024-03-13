@@ -1,4 +1,4 @@
-const util = require('../util');
+const util = require('../util/util');
 
 function Groups(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);

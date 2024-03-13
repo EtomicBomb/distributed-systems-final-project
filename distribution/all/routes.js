@@ -1,4 +1,4 @@
-const util = require('../util');
+const util = require('../util/util');
 
 function Routes(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
