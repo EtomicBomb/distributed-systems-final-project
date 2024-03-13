@@ -63,8 +63,14 @@ const formats = [
   {
     matches: (object) => object instanceof Error,
     kind: 'error',
-    ser: (object) => object.message,
-    de: (value, evil) => new Error(value),
+    ser: (object) => ({message: object.message, cause: object.cause}),
+    de: ({message, cause}, evil) => new Error(message, {cause}),
+  },
+  {
+    matches: (object) => object.name === '',
+    kind: 'rendezvousHash',
+    ser: (object) => ({message: object.message, cause: object.cause}),
+    de: ({message, cause}, evil) => new Error(message, {cause}),
   },
 ];
 

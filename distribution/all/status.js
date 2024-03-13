@@ -49,14 +49,14 @@ function Status(gidConfig) {
         return;
       }
       const gid = gidConfig.gid;
-        require('../../distribution/all/groups')(gidConfig)
-            .add(gid, node, (e, v) => {
-        if (Object.keys(e).length > 0) {
-          callback(e, null);
-          return;
-        }
-        callback(null, node);
-      });
+      require('../../distribution/all/groups')(gidConfig)
+          .add(gid, node, (e, v) => {
+            if (Object.keys(e).length > 0) {
+              callback(e, null);
+              return;
+            }
+            callback(null, node);
+          });
     });
   };
 }

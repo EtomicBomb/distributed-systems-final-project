@@ -78,7 +78,7 @@ function Groups() {
   };
   this.registerKnownNode(global.nodeConfig);
   this.get = (gid, callback) => {
-      callback = callback || function() {};
+    callback = callback || function() {};
     if (gid === 'local') {
       callback(null, {[id.getSID(global.nodeConfig)]: global.nodeConfig});
       return;
@@ -94,34 +94,36 @@ function Groups() {
     }
     callback(null, group);
   };
-  this.putInDistribution = (gid) => {
+  this.putInDistribution = (gidConfig) => {
+    const gid = gidConfig.gid || gidConfig;
     if (global.distribution[gid] !== undefined) {
       return;
     }
     global.distribution[gid] = Object.fromEntries(
         Object.entries(require('../distribution/all'))
-            .map(([k, v]) => [k, v({gid})]),
+            .map(([k, v]) => [k, v(gidConfig)]),
     );
   };
-  this.put = (gid, group, callback) => {
-      callback = callback || function() {};
-    gid = gid.gid || gid;
+  this.put = (gidConfig, group, callback) => {
+    callback = callback || function() {};
+    const gid = gidConfig.gid || gidConfig;
     this.gidToGroup.set(gid, group);
-    this.putInDistribution(gid);
+    this.putInDistribution(gidConfig);
     callback(null, group);
   };
-  this.add = (gid, node, callback) => {
-      callback = callback || function() {};
+  this.add = (gidConfig, node, callback) => {
+    callback = callback || function() {};
+    const gid = gidConfig.gid || gidConfig;
     if (!this.gidToGroup.has(gid)) {
       this.gidToGroup.set(gid, {});
-      this.putInDistribution(gid);
+      this.putInDistribution(gidConfig);
     }
     const group = this.gidToGroup.get(gid);
     group[id.getSID(node)] = node;
     callback(null, group);
   };
   this.rem = (gid, sid, callback) => {
-      callback = callback || function() {};
+    callback = callback || function() {};
     const removeFrom = this.gidToGroup.get(gid);
     if (removeFrom === undefined) {
       callback(new Error(`could not find: ${gid}`, null));
@@ -131,7 +133,7 @@ function Groups() {
     callback(null, removeFrom);
   };
   this.del = (gid, callback) => {
-      callback = callback || function() {};
+    callback = callback || function() {};
     const group = this.gidToGroup.get(gid);
     if (group === undefined) {
       callback(new Error(`group ${gid} does not exist`), null);
@@ -158,8 +160,8 @@ function Gossip() {
         callback(new Error(`could not find method ${method}`), null);
         return;
       }
-        require('../distribution/all/gossip')(gidConfig)
-//      global.distribution.all.gossip(gidConfig)
+      require('../distribution/all/gossip')(gidConfig)
+      //      global.distribution.all.gossip(gidConfig)
           .send(message, {service, method}, () => {});
       service[method].call(service, ...message, callback);
     });
@@ -208,7 +210,7 @@ function Comm() {
           return;
         }
         body = Buffer.concat(body).toString();
-        callback(...serialization.deserialize(body));
+        callback(...serialization.deserialize(body, expr => eval(expr)));
       });
     });
     req.on('error', (e) => {
@@ -241,15 +243,16 @@ function RPC() {
   };
 };
 
+function getGidKey(gidKey) {
+  const gid = !gidKey || gidKey.gid === undefined ? 'all' : gidKey.gid;
+  const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
+  return {gid, key};
+}
+
 function Mem() {
   this.store = new Map();
-  this.gidKey = (gidKey) => {
-    const gid = gidKey.gid === undefined ? 'all' : gidKey.gid;
-    const key = gidKey.key === undefined ? gidKey : gidKey.key;
-    return {gid, key};
-  };
   this.get = (gidKey, callback) => {
-    const {gid, key} = this.gidKey(gidKey);
+    const {gid, key} = getGidKey(gidKey);
     if (!this.store.has(gid)) {
       callback(new Error(`could not find gid ${gid}`), null);
       return;
@@ -266,7 +269,7 @@ function Mem() {
     callback(null, gidStore.get(key));
   };
   this.put = (value, gidKey, callback) => {
-    let {gid, key} = this.gidKey(gidKey);
+    let {gid, key} = getGidKey(gidKey);
     key = util.getActualKey(key, value);
     if (!this.store.has(gid)) {
       this.store.set(gid, new Map());
@@ -275,61 +278,100 @@ function Mem() {
     callback(null, value);
   };
   this.del = (gidKey, callback) => {
-    const {gid, key} = this.gidKey(gidKey);
+    const {gid, key} = getGidKey(gidKey);
     if (!this.store.has(gid)) {
       callback(new Error(`could not find gid ${gid}`), null);
       return;
     }
-    const actuallyRemoved = this.store.get(gid).delete(key);
-    if (!actuallyRemoved) {
-      callback(new Error(`could not find ${key}`), null);
+    const gidStore = this.store.get(gid);
+    if (!gidStore.has(key)) {
+      callback(new Error(`could not find key ${key}`), null);
       return;
     }
-    callback(null, null);
+    const ret = gidStore.get(key);
+    gidStore.delete(key);
+    callback(null, ret);
   };
 }
 
 function Store() {
-  const head = path.join(
-      __dirname,
-      '..',
-      'store',
-      id.getNID(global.nodeConfig),
-  );
-  fs.mkdirSync(head, {recursive: true});
-  this.getLocation = (key) => {
-    let gid = key.gid === undefined ? 'all' : key.gid;
-    key = key.key === undefined ? key : key.key;
-    key = Buffer.from(key).toString('hex');
-    return path.join(head, gid, key);
+  const getAll = (gid, nid, callback) => {
+    const correctPath = path.join(__dirname, '..', 'store');
+    fs.readdir(correctPath, {recursive: true, withFileTypes: true}, (e, v) => {
+      if (e) {
+        callback(e, null);
+        return;
+      }
+      v = v
+          .map((dirent) => {
+            const split = dirent.parentPath.split('/');
+            const key = Buffer.from(dirent.name, 'hex').toString();
+            return {
+              isFile: dirent.isFile(),
+              nid: split[split.length-2],
+              group: split[split.length-1],
+              key,
+            };
+          })
+          .filter(({isFile, nid: n, group, name}) => isFile && n == nid)
+          .map(({key}) => key);
+      callback(null, v);
+    });
   };
-  this.get = (key, callback) => {
-    fs.readFile(this.getLocation(key), (err, value) => {
+  const nid = id.getNID(global.nodeConfig);
+  this.getLocation = (key, gid, create) => {
+    key = Buffer.from(key).toString('hex');
+    const head = path.join(
+        __dirname,
+        '..',
+        'store',
+        nid,
+        gid,
+    );
+    if (create) {
+      fs.mkdirSync(head, {recursive: true});
+    }
+    return path.join(head, key);
+  };
+  this.get = (gidKey, callback) => {
+    let {gid, key} = getGidKey(gidKey);
+    if (key === null) {
+      getAll(gid, nid, callback);
+      return;
+    }
+    fs.readFile(this.getLocation(key, gid, false), (err, value) => {
       if (err) {
         callback(new Error(`could not get ${key}`, {cause: err}), null);
         return;
       }
-      callback(null, serialization.deserialize(value));
+      callback(null, serialization.deserialize(value, expr => eval(expr)));
     });
   };
-  this.put = (value, key, callback) => {
+  this.put = (value, gidKey, callback) => {
+    let {gid, key} = getGidKey(gidKey);
     key = util.getActualKey(key, value);
-    value = serialization.serialize(value);
-    fs.writeFile(this.getLocation(key), value, (err) => {
-      if (err) {
-        callback(new Error(`could not put ${key}`, {cause: err}), null);
-        return;
-      }
-      callback(null, value);
-    });
+    fs.writeFile(
+        this.getLocation(key, gid, true),
+        serialization.serialize(value),
+        (err) => {
+          if (err) {
+            console.trace(err);
+            callback(new Error(`could not put ${key}`, {cause: err}), null);
+            return;
+          }
+          callback(null, value);
+        });
   };
-  this.del = (key, callback) => {
-    fs.unlink(this.getLocation(key), (err) => {
-      if (err) {
-        callback(new Error(`could not delete ${key}`, {cause: err}), null);
+  this.del = (gidKey, callback) => {
+    this.get(gidKey, (e, ret) => {
+      if (e) {
+        callback(e, null);
         return;
       }
-      callback(null, null);
+      let {gid, key} = getGidKey(gidKey);
+      fs.unlink(this.getLocation(key, gid, false), (err) => {
+        callback(null, ret);
+      });
     });
   };
 }

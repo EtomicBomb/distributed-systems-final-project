@@ -33,7 +33,7 @@ const start = function(started) {
         .on('end', function() {
           body = Buffer.concat(body).toString();
           try {
-            body = serialization.deserialize(body);
+            body = serialization.deserialize(body, expr => eval(expr));
           } catch (e) {
             callback(new Error(`could not parse json ${body}: ${e}`), null);
             return;

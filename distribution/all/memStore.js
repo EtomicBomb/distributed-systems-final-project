@@ -15,11 +15,10 @@ function callOnHolder(
     nodes = nodes.map((node) => [id.getNID(node), node]);
     nodes = Object.fromEntries(nodes);
 
-    const kid = crypto.createHash('sha256')
-        .update(value === null ? key : util.getActualKey(key, value))
-        .digest('hex');
+      const kid = id.getID(value === null ? key : util.getActualKey(key, value));
 
-    const node = nodes[hash(kid, Object.keys(nodes))];
+      const nid = hash(kid, Object.keys(nodes));
+    const node = nodes[nid];
 
     distribution.local.comm.send(
         message,
@@ -31,19 +30,38 @@ function callOnHolder(
 
 function MemStore(service, gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
+    const augment = (gidKey) => {
+        const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
+        const gid = !gidKey || gidKey.gid === undefined ? gidConfig.gid : gidKey.gid;
+        return {key, gid};
+    };
   this.get = (key, callback) => {
-      // if key is null, then run it for all node in the group
-      // pass in the context from gidConfig
-    callOnHolder({
-      key,
-      value: null,
-      gid: gidConfig.gid,
-      hash: gidConfig.hash,
-      message: [key],
-      service,
-      method: 'get',
-      callback,
-    });
+    // if key is null, then run it for all node in the group
+    // pass in the context from gidConfig
+    if (key === null) {
+      util.sendToAll({
+        message: [augment(null)],
+        service,
+        method: 'get',
+        gid: gidConfig.gid,
+        exclude: null,
+        subset: null,
+        callback: (e, v) => {
+          callback(e, Object.values(v).flat());
+        },
+      });
+    } else {
+      callOnHolder({
+        key,
+        value: null,
+        gid: gidConfig.gid,
+        hash: gidConfig.hash,
+        message: [augment(key)],
+        service,
+        method: 'get',
+        callback,
+      });
+    }
   };
   this.put = (value, key, callback) => {
     callOnHolder({
@@ -51,7 +69,7 @@ function MemStore(service, gidConfig) {
       value,
       gid: gidConfig.gid,
       hash: gidConfig.hash,
-      message: [value, key],
+      message: [value, augment(key)],
       service,
       method: 'put',
       callback,
@@ -63,13 +81,14 @@ function MemStore(service, gidConfig) {
       value: null,
       gid: gidConfig.gid,
       hash: gidConfig.hash,
-      message: [key],
+      message: [augment(key)],
       service,
       method: 'del',
       callback,
     });
   };
-  this.reconf = () => {
+  this.reconf = (group, callback) => {
+    callback(new Error('not implemented'), null);
   };
 }
 

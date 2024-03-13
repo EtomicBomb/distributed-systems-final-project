@@ -14,10 +14,10 @@ function createRPC(func) {
     global.distribution.local.comm.send(message, remote, callback);
   };
   stub = serialization.serialize(stub)
-      .replace(`__NODE_IP__`, global.nodeConfig.ip)
+      .replace('__NODE_IP__', global.nodeConfig.ip)
       .replace('`__NODE_PORT__`', global.nodeConfig.port)
       .replace('`__INSTALLATION_ID__`', installation);
-  return serialization.deserialize(stub, (expr) => eval(expr));
+  return serialization.deserialize(stub, expr => eval(expr));
 }
 
 /*

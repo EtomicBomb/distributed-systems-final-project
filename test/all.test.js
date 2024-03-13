@@ -144,10 +144,21 @@ afterAll((done) => {
 });
 
 test('foo', (done) => {
-    done();
+  done();
 });
 // ---all.comm---
 
+test('(0.5 pts) all.mem.get(jcarb)', (done) => {
+  distribution.mygroup.mem.get('jcarb', (e, v) => {
+    try {
+      expect(e).toBeInstanceOf(Error);
+      expect(v).toBeFalsy();
+      done();
+    } catch (error) {
+      done(error);
+    }
+  });
+});
 
 test('(4 pts) all.comm.send(status.get(nid))', (done) => {
   const nids = Object.values(mygroupGroup).map((node) => id.getNID(node));
@@ -615,8 +626,6 @@ test('(0.5 pts) all.mem.put/del(jcarb)', (done) => {
   });
 });
 
-/*
-
 test('(0.5 pts) all.mem.put/del/get(jcarb)', (done) => {
   const user = {first: 'Josiah', last: 'Carberry'};
   const key = 'jcarbmpdg';
@@ -852,7 +861,6 @@ test('(0.5 pts) all.store.put(no key)', (done) => {
   });
 });
 
-
 // // ---reconf / correct object placement---
 
 test(
@@ -863,7 +871,6 @@ test(
       const kid = id.getID(key);
       const nodes = [n2, n4, n6];
       const nids = nodes.map((node) => id.getNID(node));
-
       distribution.group3.store.put(user, key, (e, v) => {
         const nid = id.rendezvousHash(kid, nids);
         const pickedNode = nodes.filter((node)=> id.getNID(node) === nid)[0];
@@ -883,6 +890,7 @@ test(
     },
 );
 
+/*
 test('(2 pts) all.store.reconf(naiveHash)', (done) => {
   //  ________________________________________
   // / NOTE: If this test fails locally, make \

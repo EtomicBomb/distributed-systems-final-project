@@ -2,10 +2,13 @@ const util = require('../util');
 
 function Groups(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
-  this.get = (...args) => {
-    const callback = args.pop() || function() {};
+  const augment = (gid) => gid.gid === undefined ?
+        {...gidConfig, gid} :
+        {...gidConfig, ...gid};
+  this.get = (gid, callback) => {
+    callback = callback || (() => {});
     util.sendToAll({
-      message: args,
+      message: [gid],
       service: 'groups',
       method: 'get',
       callback,
@@ -14,10 +17,10 @@ function Groups(gidConfig) {
       subset: null,
     });
   };
-  this.put = (...args) => {
-    const callback = args.pop() || function() {};
+  this.put = (gid, group, callback) => {
+    callback = callback || (() => {});
     util.sendToAll({
-      message: args,
+      message: [augment(gid), group],
       service: 'groups',
       method: 'put',
       callback,
@@ -26,10 +29,10 @@ function Groups(gidConfig) {
       subset: null,
     });
   };
-  this.add = (...args) => {
-    const callback = args.pop() || function() {};
+  this.add = (gid, node, callback) => {
+    callback = callback || (() => {});
     util.sendToAll({
-      message: args,
+      message: [gid, node],
       service: 'groups',
       method: 'add',
       callback,
@@ -38,10 +41,10 @@ function Groups(gidConfig) {
       subset: null,
     });
   };
-  this.rem = (...args) => {
-    const callback = args.pop() || function() {};
+  this.rem = (gid, sid, callback) => {
+    callback = callback || (() => {});
     util.sendToAll({
-      message: args,
+      message: [gid, sid],
       service: 'groups',
       method: 'rem',
       callback,
@@ -50,10 +53,10 @@ function Groups(gidConfig) {
       subset: null,
     });
   };
-  this.del = (...args) => {
-    const callback = args.pop() || function() {};
+  this.del = (gid, callback) => {
+    callback = callback || (() => {});
     util.sendToAll({
-      message: args,
+      message: [gid],
       service: 'groups',
       method: 'del',
       callback,
