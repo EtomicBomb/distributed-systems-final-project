@@ -59,7 +59,7 @@ function Status() {
     }));
     config = util.serialize(config);
     const correctPath = path.join(__dirname, '../distribution.js');
-    childProcess.spawn(correctPath, ['--config', config], {
+    childProcess.spawn('node', [correctPath, '--config', config], {
       stdio: 'inherit',
     }).on('error', (e) => {
       console.error('spawn error', e);
@@ -207,7 +207,7 @@ function Comm() {
           return;
         }
         body = Buffer.concat(body).toString();
-        callback(...util.deserialize(body, expr => eval(expr)));
+        callback(...util.deserialize(body, (expr) => eval(expr)));
       });
     });
     req.on('error', (e) => {
@@ -296,12 +296,12 @@ function Store() {
     const correctPath = path.join(__dirname, '..', 'store');
     fs.readdir(correctPath, {recursive: true, withFileTypes: true}, (e, v) => {
       if (e) {
-        callback(e, null);
+        callback(null, []);
         return;
       }
       v = v
           .map((dirent) => {
-            const split = dirent.parentPath.split('/');
+            const split = dirent.path.split('/');
             const key = Buffer.from(dirent.name, 'hex').toString();
             return {
               isFile: dirent.isFile(),
@@ -341,7 +341,7 @@ function Store() {
         callback(new Error(`could not get ${key}`, {cause: err}), null);
         return;
       }
-      callback(null, util.deserialize(value, expr => eval(expr)));
+      callback(null, util.deserialize(value, (expr) => eval(expr)));
     });
   };
   this.put = (value, gidKey, callback) => {
@@ -357,7 +357,8 @@ function Store() {
             return;
           }
           callback(null, value);
-        });
+        },
+    );
   };
   this.del = (gidKey, callback) => {
     this.get(gidKey, (e, ret) => {

@@ -33,7 +33,7 @@ const start = function(started) {
         .on('end', function() {
           body = Buffer.concat(body).toString();
           try {
-            body = util.deserialize(body, expr => eval(expr));
+            body = util.deserialize(body, (expr) => eval(expr));
           } catch (e) {
             callback(new Error(`could not parse json ${body}: ${e}`), null);
             return;
@@ -57,7 +57,7 @@ const start = function(started) {
     started(
         server,
         global.nodeConfig,
-        (...args) => console.trace('trace start', ...args),
+        (...args) => {},
     );
   });
 };

@@ -25,13 +25,13 @@ function idToNum(id) {
 }
 
 function naiveHash(kid, nids) {
-    const idToNum = global.distribution.util.id.idToNum;
+  const idToNum = global.distribution.util.id.idToNum;
   nids.sort();
   return nids[idToNum(kid) % nids.length];
 }
 
 function consistentHash(kid, nids) {
-    const idToNum = global.distribution.util.id.idToNum;
+  const idToNum = global.distribution.util.id.idToNum;
   kid = idToNum(kid);
   const numericalNIDs = nids.map(idToNum);
   numericalNIDs.push(kid);
@@ -42,7 +42,7 @@ function consistentHash(kid, nids) {
 }
 
 function rendezvousHash(kid, nids) {
-    const idToNum = global.distribution.util.id.idToNum;
+  const idToNum = global.distribution.util.id.idToNum;
   const crypto = require('node:crypto');
   const cmp = (key) => {
     return (a, b) => {
@@ -62,7 +62,7 @@ function rendezvousHash(kid, nids) {
         nid,
         idToNum(crypto.createHash('sha256').update(nid + kid).digest('hex')),
       ])
-      .sort(cmp(a => a[1]));
+      .sort(cmp((a) => a[1]));
   return nids[nids.length-1][0];
 }
 

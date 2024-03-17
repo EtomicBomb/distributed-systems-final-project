@@ -14,9 +14,9 @@ function callOnHolder(
     nodes = nodes.map((node) => [util.id.getNID(node), node]);
     nodes = Object.fromEntries(nodes);
 
-      const kid = util.id.getID(value === null ? key : util.getActualKey(key, value));
+    const kid = util.id.getID(value === null ? key : util.getActualKey(key, value));
 
-      const nid = hash(kid, Object.keys(nodes));
+    const nid = hash(kid, Object.keys(nodes));
     const node = nodes[nid];
 
     distribution.local.comm.send(
@@ -29,11 +29,11 @@ function callOnHolder(
 
 function MemStore(service, gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
-    const augment = (gidKey) => {
-        const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
-        const gid = !gidKey || gidKey.gid === undefined ? gidConfig.gid : gidKey.gid;
-        return {key, gid};
-    };
+  const augment = (gidKey) => {
+    const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
+    const gid = !gidKey || gidKey.gid === undefined ? gidConfig.gid : gidKey.gid;
+    return {key, gid};
+  };
   this.get = (key, callback) => {
     // if key is null, then run it for all node in the group
     // pass in the context from gidConfig
