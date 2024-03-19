@@ -1,4 +1,4 @@
-const http = require('http');
+const http = require('node:http');
 const path = require('node:path');
 const process = require('node:process');
 const childProcess = require('node:child_process');
@@ -158,7 +158,6 @@ function Gossip() {
         return;
       }
       require('../distribution/all/gossip')(gidConfig)
-      //      global.distribution.all.gossip(gidConfig)
           .send(message, {service, method}, () => {});
       service[method].call(service, ...message, callback);
     });

@@ -1,5 +1,4 @@
 const util = require('../util/util');
-const crypto = require('node:crypto');
 
 function callOnHolder(
     {key, value, gid, hash, message, service, method, callback},
@@ -14,7 +13,8 @@ function callOnHolder(
     nodes = nodes.map((node) => [util.id.getNID(node), node]);
     nodes = Object.fromEntries(nodes);
 
-    const kid = util.id.getID(value === null ? key : util.getActualKey(key, value));
+    let kid = value === null ? key : util.getActualKey(key, value);
+    kid = util.id.getID(kid);
 
     const nid = hash(kid, Object.keys(nodes));
     const node = nodes[nid];
@@ -31,7 +31,8 @@ function MemStore(service, gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
   const augment = (gidKey) => {
     const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
-    const gid = !gidKey || gidKey.gid === undefined ? gidConfig.gid : gidKey.gid;
+    const gid = !gidKey ||
+          gidKey.gid === undefined ? gidConfig.gid : gidKey.gid;
     return {key, gid};
   };
   this.get = (key, callback) => {

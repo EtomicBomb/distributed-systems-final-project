@@ -1,4 +1,5 @@
-const util = require('../distribution').util;
+const distribution = require('../distribution');
+const util = distribution.util;
 
 test('(5 pts) serializeNumber', () => {
   const number = 42;

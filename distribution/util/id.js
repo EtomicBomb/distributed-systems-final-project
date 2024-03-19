@@ -43,7 +43,7 @@ function consistentHash(kid, nids) {
 
 function rendezvousHash(kid, nids) {
   const idToNum = global.distribution.util.id.idToNum;
-  const crypto = require('node:crypto');
+  const getID = global.distribution.util.id.getID;
   const cmp = (key) => {
     return (a, b) => {
       a = key(a);
@@ -58,11 +58,8 @@ function rendezvousHash(kid, nids) {
     };
   };
   nids = nids
-      .map((nid) => [
-        nid,
-        idToNum(crypto.createHash('sha256').update(nid + kid).digest('hex')),
-      ])
-      .sort(cmp((a) => a[1]));
+      .map((nid) => [nid, idToNum(getID(kid + nid))])
+      .sort(cmp((a) => a[1].toString()));
   return nids[nids.length-1][0];
 }
 
