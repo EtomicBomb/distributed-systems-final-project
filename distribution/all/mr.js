@@ -1,10 +1,9 @@
+const {promisify} = require('node:util');
 const util = require('../util/util');
 
-function doMap({job, map, gid, hash, memOrStore, key1s, callback}) {
-  let remaining = key1s.length;
-  const errors = [];
+async function doMap({job, map, gid, hash, memOrStore, key1s}) {
   for (const key1 of key1s) {
-    util.callOnHolder({
+    await util.callOnHolder({
       key: key1,
       value: null,
       gid,
@@ -12,20 +11,12 @@ function doMap({job, map, gid, hash, memOrStore, key1s, callback}) {
       message: [map, job, gid, hash, key1, memOrStore],
       service: 'mapReduceMapper',
       method: 'map',
-      callback: (e, v) => {
-        remaining -= 1;
-        errors.push(e);
-        if (remaining > 0) {
-          return;
-        }
-        callback(errors, null);
-      },
     });
   }
 }
 
-function doReduce({job, reduce, gid, callback}) {
-  util.sendToAll({
+async function doReduce({job, reduce, gid}) {
+  const v = await new Promise(cb => util.sendToAll({
     message: [job, reduce],
     service: 'mapReduceReducer',
     method: 'reduce',
@@ -33,25 +24,27 @@ function doReduce({job, reduce, gid, callback}) {
     exclude: null,
     subset: null,
     callback: (e, v) => {
-      v = Object.values(v).flat();
-      //        console.trace(v);
-      //      v = Object.groupBy(v, ([key3, value3]) => key3);
-      //      v = Object.entries(v).map(([key3, [_, value3]]) => [key3, value3]);
-      //      v = Object.fromEntries(v);
-      callback(e, v);
+        cb(v);
     },
-  });
+  }));
+  return Object.values(v).flat();
 }
 
 function MapReduce(gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
   this.jobsIssued = 0;
-  this.exec = ({keys, map, reduce, memory}, callback) => {
+  this.execAsync = async ({keys, map, reduce, memory}) => {
     this.jobsIssued += 1;
     const job = `${util.id.getNID(global.nodeConfig)}-${this.jobsIssued}`;
     const memOrStore = memory === null ? gidConfig.memOrStore : (memory ? 'mem' : 'store');
     const {gid, hash} = gidConfig;
-    doMap({job, map, gid, hash, memOrStore, key1s: keys, callback: (e, v) => doReduce({job, reduce, gid, callback})});
+    await doMap({job, map, gid, hash, memOrStore, key1s: keys});
+    return await doReduce({job, reduce, gid});
+  };
+  this.exec = ({keys, map, reduce, memory}, callback) => {
+      this.execAsync({keys, map, reduce, memory})
+        .then(v => callback(null, v))
+        .catch(e => callback(e, null));
   };
 }
 

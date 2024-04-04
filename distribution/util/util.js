@@ -1,4 +1,5 @@
 const https = require('node:https');
+const {promisify} = require('node:util');
 const {JSDOM} = require('jsdom');
 const serialization = require('./serialization');
 const id = require('./id');
@@ -8,31 +9,28 @@ function getActualKey(key, value) {
   return key === null ? id.getID(value) : key;
 }
 
-function callOnHolder(
-    {key, value, gid, hash, message, service, method, callback},
+async function callOnHolder(
+    {key, value, gid, hash, message, service, method},
 ) {
-  distribution.local.groups.get(gid, (e, nodes) => {
-    if (e) {
-      callback(e, null);
-      return;
-    }
+  let nodes = await promisify((cb) => distribution.local.groups.get(gid, cb))();
 
-    nodes = Object.values(nodes);
-    nodes = nodes.map((node) => [id.getNID(node), node]);
-    nodes = Object.fromEntries(nodes);
+  nodes = Object.values(nodes);
+  nodes = nodes.map((node) => [id.getNID(node), node]);
+  nodes = Object.fromEntries(nodes);
 
-    let kid = value === null ? key : getActualKey(key, value);
-    kid = id.getID(kid);
+  let kid = value === null ? key : getActualKey(key, value);
+  kid = id.getID(kid);
 
-    const nid = hash(kid, Object.keys(nodes));
-    const node = nodes[nid];
+  const nid = hash(kid, Object.keys(nodes));
+  const node = nodes[nid];
 
+  return await promisify((cb) => {
     distribution.local.comm.send(
         message,
         {node, service, method},
-        callback,
+        cb,
     );
-  });
+  })();
 }
 
 function defaultGIDConfig(gidConfig) {
@@ -44,12 +42,11 @@ function defaultGIDConfig(gidConfig) {
   return gidConfig;
 }
 
-function sendToAll({message, service, method, callback, gid, exclude, subset}) {
+function sendToAll({message, service, method, gid, exclude, subset}) {
   if (service === undefined || method === undefined) {
     callback(new Error(`missing node, service, or method`), null);
     return;
   }
-  //  console.trace('trying to send', message);
   distribution.local.groups.get(gid, (e, nodes) => {
     nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
     if (subset) {

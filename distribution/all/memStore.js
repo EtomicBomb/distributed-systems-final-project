@@ -1,3 +1,4 @@
+const {promisify} = require('node:util');
 const util = require('../util/util');
 
 function MemStore(service, gidConfig) {
@@ -32,8 +33,7 @@ function MemStore(service, gidConfig) {
         message: [augment(key)],
         service,
         method: 'get',
-        callback,
-      });
+      }).then((v) => callback(null, v)).catch((e) => callback(e, null));
     }
   };
   this.put = (value, key, callback) => {
@@ -45,8 +45,7 @@ function MemStore(service, gidConfig) {
       message: [value, augment(key)],
       service,
       method: 'put',
-      callback,
-    });
+    }).then((v) => callback(null, v)).catch((e) => callback(e, null));
   };
   this.del = (key, callback) => {
     util.callOnHolder({
@@ -57,8 +56,7 @@ function MemStore(service, gidConfig) {
       message: [augment(key)],
       service,
       method: 'del',
-      callback,
-    });
+    }).then((v) => callback(null, v)).catch((e) => callback(e, null));
   };
   this.reconf = (group, callback) => {
     callback(new Error('not implemented'), null);

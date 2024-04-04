@@ -44,40 +44,40 @@ async function runWorkflow(gid, callback) {
     return {[key]: values.length};
   };
 
-  const server = await new Promise(cb => distribution.node.start(cb));
-    for (const node of nodes) {
-        await new Promise(cb => distribution.local.status.spawn(node, cb));
-    }
-    await new Promise(cb => {
-        require('../distribution/all/groups')(gidConfig)
-            .put(gidConfig, group, cb)
+  const server = await new Promise((cb) => distribution.node.start(cb));
+  for (const node of nodes) {
+    await new Promise((cb) => distribution.local.status.spawn(node, cb));
+  }
+  await new Promise((cb) => {
+    require('../distribution/all/groups')(gidConfig)
+        .put(gidConfig, group, cb);
+  });
+
+  for (const data of dataset) {
+    await new Promise((cb) => {
+      require('../distribution/all/store')(gidConfig)
+          .put(Object.values(data)[0], Object.keys(data)[0], cb);
     });
+  }
+  const [_, keys] = await new Promise((cb) => {
+    require('../distribution/all/store')(gidConfig)
+        .get(null, (e, v) => cb([e, v]));
+  });
 
-    for (const data of dataset) {
-        await new Promise(cb => {
-            require('../distribution/all/store')(gidConfig)
-                .put(Object.values(data)[0], Object.keys(data)[0], cb)
-        });
-    }
-    const [_, keys] = await new Promise(cb => {
-        require('../distribution/all/store')(gidConfig)
-            .get(null, (e, v) => cb([e, v]))
+  const [e, result] = await promisify((cb) => {
+    require('../distribution/all/mr')(gidConfig)
+        .exec({keys, map: mapper, reduce: reducer}, cb);
+  })();
+    console.trace(e, result);
+
+  for (const node of nodes) {
+    await new Promise((cb) => {
+      distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb);
     });
+  }
+  await new Promise((cb) => server.close(cb));
 
-    const [e, result] = await new Promise(cb => {
-        require('../distribution/all/mr')(gidConfig)
-            .exec({keys, map: mapper, reduce: reducer}, (e, v) => cb([e, v]))
-    });
-
-
-    for (const node of nodes) {
-        await new Promise(cb => {
-            distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb);
-        });
-    }
-    await new Promise(cb => server.close(cb));
-    
-    return result;
+  return result;
 }
 
 /*
@@ -203,7 +203,7 @@ function urlExtraction(gid, callback) {
 
 */
 
-runWorkflow('hello', console.log).then(console.log);
+runWorkflow('hello', console.log).then(console.log).catch(c => console.error('error2', c));
 // rm -rf store/store; pkill node; clear && node workflows/workflows.js
 
 // crawler('crawl', console.log);
