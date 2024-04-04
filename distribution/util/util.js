@@ -1,3 +1,5 @@
+const https = require('node:https');
+const {JSDOM} = require('jsdom');
 const serialization = require('./serialization');
 const id = require('./id');
 const wire = require('./wire');
@@ -85,6 +87,57 @@ function sendToAll({message, service, method, callback, gid, exclude, subset}) {
   });
 }
 
+function getPageContents(url, callback) {
+  try {
+    url = new URL(url);
+  } catch (e) {
+    callback(new Error('invalid url', {source: e}), null);
+    return;
+  }
+  let callbackCalled = false;
+
+  https.request(url, (res) => {
+    let body = [];
+    res
+        .on('data', (chunk) => {
+          body.push(chunk);
+        })
+        .on('end', () => {
+          body = Buffer.concat(body).toString();
+          if (callbackCalled) {
+            return;
+          }
+          callbackCalled = true;
+          callback(null, {body, status: res.statusCode});
+        });
+  })
+      .on('error', (e) => {
+        if (callbackCalled) {
+          return;
+        }
+        callbackCalled = true;
+        callback(e, null);
+      })
+      .end();
+}
+
+function getUrls(url, body) {
+  url = url.endsWith('index.html') ? url : `${url}/`;
+  const ret = [];
+  const dom = new JSDOM(body);
+  for (let link of dom.window.document.querySelectorAll('a[href]')) {
+    link = link.getAttribute('href');
+    try {
+      link = new URL(link, url);
+    } catch (e) {
+      continue;
+    }
+    link = link.href;
+    ret.push(link);
+  }
+  return ret;
+}
+
 module.exports = {
   serialize: serialization.serialize,
   deserialize: serialization.deserialize,
@@ -92,6 +145,8 @@ module.exports = {
   sendToAll,
   getActualKey,
   callOnHolder,
+  getPageContents,
+  getUrls,
   id,
   wire,
 };

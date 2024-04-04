@@ -6,6 +6,6 @@ module.exports = {
   routes: require('./routes'),
   status: require('./status'),
   mem: require('./mem'),
-  mr: require('./mapReduce'),
+  mr: require('./mr'),
   store: require('./store'),
 };

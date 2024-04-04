@@ -250,6 +250,10 @@ function MapReduceMapper() {
       results = Array.isArray(results) ? results : [results];
       results = results.map((result) => Object.entries(result).flat());
       let remaining = results.length;
+      if (remaining.length === 0) {
+        callback([], null);
+        return;
+      }
       const errors = [];
       for (const [key2, value2] of results) {
         util.callOnHolder({
@@ -295,33 +299,6 @@ function MapReduceReducer() {
     }
     let results = [...key2ToValue2s].map(([key2, value2s]) => reduce(key2, value2s));
     callback(null, results);
-  };
-}
-
-function MapReduceScheduler() {
-  this.jobCounter = 0;
-  this.jobs = new Map();
-  this.createJob = (nodeIDs, callback) => {
-    const jobID = this.jobCounter;
-    this.jobCounter += 1;
-
-    // create and return an RPC?
-    util.wire.createRPC(distribution.util.wire.toAsync(addOne));
-
-
-    return jobID;
-  };
-  this.completeJob = (jobID) => {
-    this.jobs.delete(jobID);
-  };
-  this.notify = (jobID, nid, ...message) => {
-    const job = this.jobs.get(jobID);
-    if (job === undefined) {
-      console.trace('job not found');
-      return;
-    }
-    const {callback} = job;
-    callback(nid, ...message);
   };
 }
 
@@ -452,6 +429,5 @@ routes.mem = new Mem();
 routes.store = new Store();
 routes.mapReduceMapper = new MapReduceMapper();
 routes.mapReduceReducer = new MapReduceReducer();
-routes.mapReduceScheduler = new MapReduceScheduler();
 
 module.exports = routes;
