@@ -20,10 +20,7 @@ function MemStore(service, gidConfig) {
         gid: gidConfig.gid,
         exclude: null,
         subset: null,
-        callback: (e, v) => {
-          callback(e, Object.values(v).flat());
-        },
-      });
+      }).then(([es, vs]) => callback(es, Object.values(vs).flat()));
     } else {
       util.callOnHolder({
         key,

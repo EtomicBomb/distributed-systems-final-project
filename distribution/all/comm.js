@@ -7,11 +7,10 @@ function Comm(gidConfig) {
       message,
       service,
       method,
-      callback,
       gid: gidConfig.gid,
       exclude: null,
       subset: null,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
 }
 

@@ -11,11 +11,10 @@ function Groups(gidConfig) {
       message: [gid],
       service: 'groups',
       method: 'get',
-      callback,
       gid: 'all',
       exclude: null,
       subset: null,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
   this.put = (gid, group, callback) => {
     callback = callback || (() => {});
@@ -23,11 +22,10 @@ function Groups(gidConfig) {
       message: [augment(gid), group],
       service: 'groups',
       method: 'put',
-      callback,
       gid: 'all',
       exclude: null,
       subset: null,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
   this.add = (gid, node, callback) => {
     callback = callback || (() => {});
@@ -35,11 +33,10 @@ function Groups(gidConfig) {
       message: [gid, node],
       service: 'groups',
       method: 'add',
-      callback,
       gid: 'all',
       exclude: null,
       subset: null,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
   this.rem = (gid, sid, callback) => {
     callback = callback || (() => {});
@@ -47,11 +44,10 @@ function Groups(gidConfig) {
       message: [gid, sid],
       service: 'groups',
       method: 'rem',
-      callback,
       gid: 'all',
       exclude: null,
       subset: null,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
   this.del = (gid, callback) => {
     callback = callback || (() => {});
@@ -59,11 +55,10 @@ function Groups(gidConfig) {
       message: [gid],
       service: 'groups',
       method: 'del',
-      callback,
       gid: 'all',
       exclude: null,
       subset: null,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
 }
 

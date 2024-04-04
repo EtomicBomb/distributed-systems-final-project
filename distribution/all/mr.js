@@ -16,18 +16,15 @@ async function doMap({job, map, gid, hash, memOrStore, key1s}) {
 }
 
 async function doReduce({job, reduce, gid}) {
-  const v = await new Promise(cb => util.sendToAll({
+  const [es, vs] = await util.sendToAll({
     message: [job, reduce],
     service: 'mapReduceReducer',
     method: 'reduce',
     gid,
     exclude: null,
     subset: null,
-    callback: (e, v) => {
-        cb(v);
-    },
-  }));
-  return Object.values(v).flat();
+  });
+  return Object.values(vs).flat();
 }
 
 function MapReduce(gidConfig) {
@@ -42,9 +39,9 @@ function MapReduce(gidConfig) {
     return await doReduce({job, reduce, gid});
   };
   this.exec = ({keys, map, reduce, memory}, callback) => {
-      this.execAsync({keys, map, reduce, memory})
-        .then(v => callback(null, v))
-        .catch(e => callback(e, null));
+    this.execAsync({keys, map, reduce, memory})
+        .then((v) => callback(null, v))
+        .catch((e) => callback(e, null));
   };
 }
 

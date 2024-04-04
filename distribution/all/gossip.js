@@ -12,7 +12,7 @@ function Gossip(gidConfig) {
       gid: gidConfig.gid,
       exclude: null,
       subset: gidConfig.subset,
-    });
+    }).then(([es, vs]) => callback(es, vs));
   };
   this.at = (periodMillis, rpc, callback) => {
     const intervalID = setInterval(() => {

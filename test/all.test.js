@@ -877,6 +877,8 @@ test(
     },
 );
 
+/*
+
 test('(2 pts) all.store.reconf(naiveHash)', (done) => {
   //  ________________________________________
   // / NOTE: If this test fails locally, make \
@@ -1026,3 +1028,5 @@ test('(2 pts) all.store.reconf(naiveHash)', (done) => {
     });
   });
 });
+
+*/

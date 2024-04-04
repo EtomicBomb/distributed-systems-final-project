@@ -42,46 +42,35 @@ function defaultGIDConfig(gidConfig) {
   return gidConfig;
 }
 
-function sendToAll({message, service, method, gid, exclude, subset}) {
-  if (service === undefined || method === undefined) {
-    callback(new Error(`missing node, service, or method`), null);
-    return;
+async function sendToAll({message, service, method, callback, gid, exclude, subset}) {
+  let nodes = await promisify((cb) => distribution.local.groups.get(gid, cb))();
+  nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
+  if (subset) {
+    const newNodes = [];
+    subset = subset(nodes);
+    while (newNodes.length < subset) {
+      const index = Math.floor(nodes.length * Math.random());
+      newNodes.push(...nodes.splice(index, 1));
+    }
+    nodes = newNodes;
   }
-  distribution.local.groups.get(gid, (e, nodes) => {
-    nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
-    if (subset) {
-      const newNodes = [];
-      subset = subset(nodes);
-      while (newNodes.length < subset) {
-        const index = Math.floor(nodes.length * Math.random());
-        newNodes.push(...nodes.splice(index, 1));
-      }
-      nodes = newNodes;
+  let sidToValue = {};
+  let sidToError = {};
+  for (const node of nodes) {
+    const sid = id.getSID(node);
+    const [e, v] = await new Promise((cb) =>
+      distribution.local.comm.send(
+          message, {node, service, method}, (e, v) => cb([e, v]),
+      ),
+    );
+    if (e !== null) {
+      sidToError[sid] = e;
     }
-    let sidToValue = {};
-    let sidToError = {};
-    let responses = 0;
-    if (nodes.length === 0) {
-      callback(sidToError, sidToValue);
-      return;
+    if (v !== null) {
+      sidToValue[sid] = v;
     }
-    for (const node of nodes) {
-      const sid = id.getSID(node);
-      distribution.local.comm.send(message, {node, service, method}, (e, v) => {
-        if (e !== null) {
-          sidToError[sid] = e;
-        }
-        if (v !== null) {
-          sidToValue[sid] = v;
-        }
-        responses += 1;
-        if (responses < nodes.length) {
-          return;
-        }
-        callback(sidToError, sidToValue);
-      });
-    }
-  });
+  }
+  return [sidToError, sidToValue];
 }
 
 function getPageContents(url, callback) {

@@ -64,11 +64,10 @@ async function runWorkflow(gid, callback) {
         .get(null, (e, v) => cb([e, v]));
   });
 
-  const [e, result] = await promisify((cb) => {
+  const result = await promisify((cb) => {
     require('../distribution/all/mr')(gidConfig)
         .exec({keys, map: mapper, reduce: reducer}, cb);
   })();
-    console.trace(e, result);
 
   for (const node of nodes) {
     await new Promise((cb) => {
@@ -203,7 +202,7 @@ function urlExtraction(gid, callback) {
 
 */
 
-runWorkflow('hello', console.log).then(console.log).catch(c => console.error('error2', c));
+runWorkflow('hello', console.log).then(console.log).catch((c) => console.error('error2', c));
 // rm -rf store/store; pkill node; clear && node workflows/workflows.js
 
 // crawler('crawl', console.log);

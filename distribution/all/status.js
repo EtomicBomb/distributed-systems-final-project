@@ -10,18 +10,17 @@ function Status(gidConfig) {
       gid: gidConfig.gid,
       exclude: null,
       subset: null,
-      callback: (e, v) => {
-        if (v === undefined || v === null) {
-          callback(e, null);
-          return;
-        }
-        const shouldAggregate = ['counts', 'heapTotal', 'heapUsed']
-            .includes(installation);
-        if (shouldAggregate) {
-          v = Object.values(v).reduce((acc, elem) => acc + elem, 0);
-        }
-        callback(e, v);
-      },
+    }).then(([es, vs]) => {
+      if (vs === undefined || vs === null) {
+        callback(es, null);
+        return;
+      }
+      const shouldAggregate = ['counts', 'heapTotal', 'heapUsed']
+          .includes(installation);
+      if (shouldAggregate) {
+        vs = Object.values(vs).reduce((acc, elem) => acc + elem, 0);
+      }
+      callback(es, vs);
     });
   };
   this.stop = (callback) => {
@@ -32,13 +31,8 @@ function Status(gidConfig) {
       gid: gidConfig.gid,
       exclude: util.id.getSID(global.nodeConfig),
       subset: null,
-      callback: (e, v) => {
-        if (e) {
-          callback(e, null);
-          return;
-        }
-        global.distribution.local.status.stop(callback);
-      },
+    }).then(([es, vs]) => {
+      global.distribution.local.status.stop(callback);
     });
   };
   this.spawn = (config, callback) => {

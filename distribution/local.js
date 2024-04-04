@@ -45,7 +45,7 @@ function Status() {
     this.server.close();
     setTimeout(() => {
       callback(null, global.nodeConfig);
-      process.exit();
+      process.exit(0);
     }, 100); // give the server enough time to close
   };
   this.spawn = (config, callback) => {
@@ -246,7 +246,6 @@ function MapReduceMapper() {
     let results = map(key1, value1);
     results = Array.isArray(results) ? results : [results];
     results = results.map((result) => Object.entries(result).flat());
-    const errors = [];
     for (const [key2, value2] of results) {
       await util.callOnHolder({
         key: key2,
