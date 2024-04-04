@@ -23,7 +23,7 @@ function MemStore(service, gidConfig) {
       }).then(([es, vs]) => callback(es, Object.values(vs).flat()));
     } else {
       util.callOnHolder({
-        key,
+        key: key.key === undefined ? key : key.key,
         value: null,
         gid: gidConfig.gid,
         hash: gidConfig.hash,
@@ -35,7 +35,7 @@ function MemStore(service, gidConfig) {
   };
   this.put = (value, key, callback) => {
     util.callOnHolder({
-      key,
+      key: key.key === undefined ? key : key.key,
       value,
       gid: gidConfig.gid,
       hash: gidConfig.hash,
@@ -46,7 +46,7 @@ function MemStore(service, gidConfig) {
   };
   this.del = (key, callback) => {
     util.callOnHolder({
-      key,
+      key: key.key === undefined ? key : key.key,
       value: null,
       gid: gidConfig.gid,
       hash: gidConfig.hash,

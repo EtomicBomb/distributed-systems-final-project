@@ -73,42 +73,28 @@ async function sendToAll({message, service, method, callback, gid, exclude, subs
   return [sidToError, sidToValue];
 }
 
-function getPageContents(url, callback) {
-  try {
-    url = new URL(url);
-  } catch (e) {
-    callback(new Error('invalid url', {source: e}), null);
-    return;
-  }
-  let callbackCalled = false;
-
-  https.request(url, (res) => {
-    let body = [];
-    res
-        .on('data', (chunk) => {
-          body.push(chunk);
+async function getPageContents(url) {
+  url = new URL(url);
+  return await new Promise((resolve, reject) => {
+    https.request(url, (res) => {
+      let body = [];
+      res
+          .on('data', (chunk) => {
+            body.push(chunk);
+          })
+          .on('end', () => {
+            body = Buffer.concat(body).toString();
+            resolve({body, status: res.statusCode});
+          });
+    })
+        .on('error', (e) => {
+          reject(e);
         })
-        .on('end', () => {
-          body = Buffer.concat(body).toString();
-          if (callbackCalled) {
-            return;
-          }
-          callbackCalled = true;
-          callback(null, {body, status: res.statusCode});
-        });
-  })
-      .on('error', (e) => {
-        if (callbackCalled) {
-          return;
-        }
-        callbackCalled = true;
-        callback(e, null);
-      })
-      .end();
+        .end();
+  });
 }
 
 function getUrls(url, body) {
-  url = url.endsWith('index.html') ? url : `${url}/`;
   const ret = [];
   const dom = new JSDOM(body);
   for (let link of dom.window.document.querySelectorAll('a[href]')) {
@@ -116,6 +102,7 @@ function getUrls(url, body) {
     try {
       link = new URL(link, url);
     } catch (e) {
+      console.trace('failed to build url from', e, link, url);
       continue;
     }
     link = link.href;

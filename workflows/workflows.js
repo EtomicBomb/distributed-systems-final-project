@@ -6,14 +6,118 @@ const {promisify} = require('node:util');
 global.nodeConfig = {ip: '127.0.0.1', port: 7070};
 global.distribution = require('../distribution');
 
-function sequence(functions, args, callback) {
-  if (functions.length === 0) {
-    callback(null, args);
-    return;
+async function crawler(gid, callback) {
+  const nodes = [
+    {ip: '127.0.0.1', port: 7110},
+    {ip: '127.0.0.1', port: 7111},
+    {ip: '127.0.0.1', port: 7112},
+  ];
+  let group = nodes.map((node) => [distribution.util.id.getSID(node), node]);
+  group = Object.fromEntries(group);
+  let gidConfig = {gid};
+
+  const urls = [
+    'https://en.wikipedia.org/wiki/Hualien_City',
+    'https://en.wikipedia.org/wiki/Pacific_Ocean',
+    'https://en.wikipedia.org/wiki/Antarctica',
+    'https://en.wikipedia.org/wiki/South_Pole',
+    'https://en.wikipedia.org/wiki/South_magnetic_pole',
+    'https://en.wikipedia.org/wiki/Geomagnetic_pole',
+    'https://en.wikipedia.org/wiki/Solar_wind',
+  ];
+
+  const server = await new Promise((cb) => distribution.node.start(cb));
+  for (const node of nodes) {
+    await promisify((cb) => distribution.local.status.spawn(node, cb))();
   }
-  functions[0]((...as) => sequence(functions.slice(1), as, callback), ...args);
+  await new Promise((cb) => {
+    require('../distribution/all/groups')(gidConfig)
+        .put(gidConfig, group, cb);
+  });
+
+  const dummyKeys = [];
+  let index = 0;
+  for (const url of urls) {
+    const dummyKey = `${index}`;
+    dummyKeys.push(dummyKey);
+    await new Promise((cb) => {
+      require('../distribution/all/store')(gidConfig)
+          .put(url, dummyKey, cb);
+    });
+    index += 1;
+  }
+
+  let result; let mapper; let reducer; let keys;
+
+  keys = dummyKeys;
+  mapper = eval(`(
+    async (dummy, url) => {
+      let {body} = await distribution.util.getPageContents(url);
+      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
+      await new Promise((res) => distribution[gid][memOrStore].put(body, {key: 'content '+url, gid}, res));
+      return [];
+    }
+  )`);
+  reducer = (key, values) => ({[key]: values});
+  result = await promisify((cb) => {
+    require('../distribution/all/mr')(gidConfig)
+        .exec({keys, map: mapper, reduce: reducer}, cb);
+  })();
+
+  keys = urls.map((url) => 'content '+url);
+  mapper = eval(`
+  async (contentUrl, body) => {
+      const {promisify} = require('node:util');
+      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
+      const bareUrl = contentUrl.split(' ')[1];
+      const urls = distribution.util.getUrls(bareUrl, body);
+      const ret = urls.map(url => ({[bareUrl]: url}));
+      return ret;
+  };
+  `);
+  reducer = eval(`
+  async (bareUrl, urlsInSource) => {
+      const {promisify} = require('node:util');
+      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
+      await new Promise((res) => distribution[gid][memOrStore].put(urlsInSource, {key: 'urls '+bareUrl, gid}, res));
+      return {[bareUrl]: null};
+  };
+  `);
+  result = await promisify((cb) => {
+    require('../distribution/all/mr')(gidConfig)
+        .exec({keys, map: mapper, reduce: reducer}, cb);
+  })();
+
+  keys = urls.map((url) => 'urls '+url);
+  mapper = eval(`
+  async (urlsUrl, urls) => {
+      const {promisify} = require('node:util');
+      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
+      const bareUrl = urlsUrl.split(' ')[1];
+      return urls.map(url => ({[url]: bareUrl}));
+  };
+  `);
+  reducer = eval(`
+  async (url, bareUrls) => {
+      return {[url]: [...new Set(bareUrls)]};
+  };
+  `);
+  //      const {promisify} = require('node:util');
+  //      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
+  //      await new Promise((res) => distribution[gid][memOrStore].put(bareUrls, {key: 'reverse '+url, gid}, res));
+  result = await promisify((cb) => {
+    require('../distribution/all/mr')(gidConfig)
+        .exec({keys, map: mapper, reduce: reducer}, cb);
+  })();
+
+  for (const node of nodes) {
+    await promisify((cb) => distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb))();
+  }
+  await promisify((cb) => server.close(cb))();
+  return result;
 }
 
+/*
 
 async function runWorkflow(gid, callback) {
   const nodes = [
@@ -46,13 +150,12 @@ async function runWorkflow(gid, callback) {
 
   const server = await new Promise((cb) => distribution.node.start(cb));
   for (const node of nodes) {
-    await new Promise((cb) => distribution.local.status.spawn(node, cb));
+      await promisify(cb => distribution.local.status.spawn(node, cb))();
   }
   await new Promise((cb) => {
     require('../distribution/all/groups')(gidConfig)
         .put(gidConfig, group, cb);
   });
-
   for (const data of dataset) {
     await new Promise((cb) => {
       require('../distribution/all/store')(gidConfig)
@@ -63,25 +166,19 @@ async function runWorkflow(gid, callback) {
     require('../distribution/all/store')(gidConfig)
         .get(null, (e, v) => cb([e, v]));
   });
-
   const result = await promisify((cb) => {
     require('../distribution/all/mr')(gidConfig)
         .exec({keys, map: mapper, reduce: reducer}, cb);
   })();
-
   for (const node of nodes) {
-    await new Promise((cb) => {
-      distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb);
-    });
+      await promisify((cb) => distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb))();
   }
-  await new Promise((cb) => server.close(cb));
+    await promisify(cb => server.close(cb))();
 
   return result;
 }
 
-/*
-
-function crawler(gid, callback) {
+async function urlExtract(gid, callback) {
   const nodes = [
     {ip: '127.0.0.1', port: 7110},
     {ip: '127.0.0.1', port: 7111},
@@ -89,55 +186,58 @@ function crawler(gid, callback) {
   ];
   let group = nodes.map((node) => [distribution.util.id.getSID(node), node]);
   group = Object.fromEntries(group);
-  const gidConfig = {gid, memOrStore: 'store'};
+  const gidConfig = {gid};
 
   let dataset = [
-    {'1': 'https://en.wikipedia.org/wiki/Hualien_City'},
-    {'2': 'https://en.wikipedia.org/wiki/Pacific_Ocean'},
-    {'3': 'https://en.wikipedia.org/wiki/Antarctica'},
-    {'4': 'https://en.wikipedia.org/wiki/South_Pole'},
-    {'5': 'https://en.wikipedia.org/wiki/South_magnetic_pole'},
-    {'6': 'https://en.wikipedia.org/wiki/Geomagnetic_pole'},
-    {'7': 'https://en.wikipedia.org/wiki/Solar_wind'},
+    {'https://en.wikipedia.org/wiki/Hualien_City': null},
+    {'https://en.wikipedia.org/wiki/Pacific_Ocean': null},
+    {'https://en.wikipedia.org/wiki/Antarctica': null},
+    {'https://en.wikipedia.org/wiki/South_Pole': null},
+    {'https://en.wikipedia.org/wiki/South_magnetic_pole': null},
+    {'https://en.wikipedia.org/wiki/Geomagnetic_pole': null},
+    {'https://en.wikipedia.org/wiki/Solar_wind': null},
   ];
 
-  let mapper = eval(`(dummy, url) => {
-      distribution.util.getPageContents(url, (e, v) => {
-          const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
-          const {body} = v;
-          distribution[gid][memOrStore]
-            .put(body, {key: url, gid}, () => {});
-      });
+  let mapper = eval(`
+    async (dummy, url) => {
+      let {body} = await distribution.util.getPageContents(url);
+      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
+      await new Promise((res) => distribution[gid][memOrStore].put(body, {key: url, gid}, res);
       return [];
-  };
+    };
   `);
-  console.log(mapper);
 
   let reducer = (key, values) => {
     return {[key]: values};
   };
 
-  let server;
-  let result;
-
-  sequence([
-    (callback) => distribution.node.start(callback),
-    (callback, s) => {
-      server = s;
-      callback(null, null);
-    },
-    ...nodes.map((node) => ((callback) => distribution.local.status.spawn(node, callback))),
-    (callback) => require('../distribution/all/groups')(gidConfig).put(gidConfig, group, callback),
-    ...dataset.map((data) => ((callback) => require('../distribution/all/store')(gidConfig).put(Object.values(data)[0], Object.keys(data)[0], callback))),
-    (callback) => require('../distribution/all/store')(gidConfig).get(null, callback),
-    (callback, _, keys) => require('../distribution/all/mr')(gidConfig).exec({keys, map: mapper, reduce: reducer}, callback),
-    (callback, e, v) => {
-      result = v;
-      callback(null, null);
-    },
-    ...nodes.map((node) => ((callback) => distribution.local.comm.send([], {service: 'status', method: 'stop', node}, callback))),
-    (callback) => server.close(callback),
-  ], [], () => callback(null, result));
+  const server = await new Promise((cb) => distribution.node.start(cb));
+  for (const node of nodes) {
+      await promisify(cb => distribution.local.status.spawn(node, cb))();
+  }
+  await new Promise((cb) => {
+    require('../distribution/all/groups')(gidConfig)
+        .put(gidConfig, group, cb);
+  });
+  for (const data of dataset) {
+    await new Promise((cb) => {
+      require('../distribution/all/store')(gidConfig)
+          .put(Object.values(data)[0], Object.keys(data)[0], cb);
+    });
+  }
+  const [_, keys] = await new Promise((cb) => {
+    require('../distribution/all/store')(gidConfig)
+        .get(null, (e, v) => cb([e, v]));
+  });
+  const result = await promisify((cb) => {
+    require('../distribution/all/mr')(gidConfig)
+        .exec({keys, map: mapper, reduce: reducer}, cb);
+  })();
+  for (const node of nodes) {
+      await promisify((cb) => distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb))();
+  }
+  await promisify(cb => server.close(cb))();
+  return result;
 }
 
 function urlExtraction(gid, callback) {
@@ -150,28 +250,6 @@ function urlExtraction(gid, callback) {
   group = Object.fromEntries(group);
   const gidConfig = {gid, memOrStore: 'store'};
 
-  let dataset = [
-    {'https://en.wikipedia.org/wiki/Hualien_City': null},
-    {'https://en.wikipedia.org/wiki/Pacific_Ocean': null},
-    {'https://en.wikipedia.org/wiki/Antarctica': null},
-    {'https://en.wikipedia.org/wiki/South_Pole': null},
-    {'https://en.wikipedia.org/wiki/South_magnetic_pole': null},
-    {'https://en.wikipedia.org/wiki/Geomagnetic_pole': null},
-    {'https://en.wikipedia.org/wiki/Solar_wind': null},
-  ];
-
-  let mapper = eval(`(url, dummy) => {
-      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
-          distribution.local[memOrStore]
-            .get({key: url, gid}, () => {
-              const urls = distribution.util.getUrls(url, body);
-
-            });
-
-      return [];
-  };
-  `);
-  console.log(mapper);
 
   let reducer = (key, values) => {
     return {[key]: values};
@@ -202,8 +280,8 @@ function urlExtraction(gid, callback) {
 
 */
 
-runWorkflow('hello', console.log).then(console.log).catch((c) => console.error('error2', c));
+// runWorkflow('hello', console.log).then(console.log).catch((c) => console.error('error2', c));
 // rm -rf store/store; pkill node; clear && node workflows/workflows.js
 
-// crawler('crawl', console.log);
+crawler('crawl', console.log).then(console.log).catch((c) => console.error('error2', c));
 

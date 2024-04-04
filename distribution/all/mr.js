@@ -2,17 +2,15 @@ const {promisify} = require('node:util');
 const util = require('../util/util');
 
 async function doMap({job, map, gid, hash, memOrStore, key1s}) {
-  for (const key1 of key1s) {
-    await util.callOnHolder({
-      key: key1,
-      value: null,
-      gid,
-      hash,
-      message: [map, job, gid, hash, key1, memOrStore],
-      service: 'mapReduceMapper',
-      method: 'map',
-    });
-  }
+  await Promise.all(key1s.map((key1) => util.callOnHolder({
+    key: key1,
+    value: null,
+    gid,
+    hash,
+    message: [map, job, gid, hash, key1, memOrStore],
+    service: 'mapReduceMapper',
+    method: 'map',
+  })));
 }
 
 async function doReduce({job, reduce, gid}) {

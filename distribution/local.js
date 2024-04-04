@@ -50,7 +50,6 @@ function Status() {
   };
   this.spawn = (config, callback) => {
     config = config || {};
-    //    const localConfig = {ip: config.ip, port: config.port};
     const localOnStart = config.onStart || function() {};
     const localCallback = callback || function() {};
     config.onStart = util.wire.createRPC(util.wire.toAsync((server, node) => {
@@ -243,20 +242,18 @@ function RPC() {
 function MapReduceMapper() {
   this.mapAsync = async (map, job, gid, hash, key1, memOrStore) => {
     const value1 = await promisify((cb) => global.distribution.local[memOrStore].get({gid, key: key1}, cb))();
-    let results = map(key1, value1);
+    let results = await Promise.resolve(map(key1, value1));
     results = Array.isArray(results) ? results : [results];
     results = results.map((result) => Object.entries(result).flat());
-    for (const [key2, value2] of results) {
-      await util.callOnHolder({
-        key: key2,
-        value: null,
-        gid,
-        hash,
-        message: [job, key2, value2, memOrStore],
-        service: 'mapReduceReducer',
-        method: 'shuffle',
-      });
-    }
+    await Promise.all(results.map(([key2, value2]) => util.callOnHolder({
+      key: key2,
+      value: null,
+      gid,
+      hash,
+      message: [job, key2, value2, memOrStore],
+      service: 'mapReduceReducer',
+      method: 'shuffle',
+    })));
   };
   this.map = (map, job, gid, hash, key1, memOrStore, callback) => {
     this.mapAsync(map, job, gid, hash, key1, memOrStore, callback)
@@ -278,14 +275,20 @@ function MapReduceReducer() {
     key2ToValue2s.get(key2).push(value2);
     callback(null, null);
   };
-  this.reduce = (job, reduce, callback) => {
+  this.reduceAsync = async (job, reduce) => {
     const key2ToValue2s = this.jobToKey2ToValue2s.get(job);
     if (key2ToValue2s === undefined) {
       callback(null, []);
       return;
     }
-    let results = [...key2ToValue2s].map(([key2, value2s]) => reduce(key2, value2s));
-    callback(null, results);
+    return await Promise.all([...key2ToValue2s].map(([key2, value2s]) =>
+      Promise.resolve(reduce(key2, value2s)),
+    ));
+  };
+  this.reduce = (job, reduce, callback) => {
+    this.reduceAsync(job, reduce)
+        .then((v) => callback(null, v))
+        .catch((e) => callback(e, null));
   };
 }
 
@@ -350,7 +353,7 @@ function Store() {
         callback(null, []);
         return;
       }
-      v = v.map((key) => Buffer.from(key, 'hex').toString());
+      v = v.map((key) => decodeURIComponent(key));
       callback(null, v);
     });
   };
@@ -359,7 +362,7 @@ function Store() {
     if (create) {
       fs.mkdirSync(head, {recursive: true});
     }
-    key = Buffer.from(key).toString('hex');
+    key = encodeURIComponent(key);
     return path.join(head, key);
   };
   this.get = (gidKey, callback) => {
