@@ -38,6 +38,7 @@ function defaultGIDConfig(gidConfig) {
   gidConfig.gid = gidConfig.gid || 'all';
   gidConfig.subset = gidConfig.subset || ((lst) => 3);
   gidConfig.hash = gidConfig.hash || id.naiveHash;
+  gidConfig.memOrStore = 'store';
   return gidConfig;
 }
 

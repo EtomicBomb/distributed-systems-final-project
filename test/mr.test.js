@@ -96,7 +96,7 @@ function sanityCheck(mapper, reducer, dataset, expected, done) {
 
 // ---all.mr---
 
- test('(25 pts) all.mr:ncdc', (done) => {
+test('(25 pts) all.mr:ncdc', (done) => {
   let m1 = (key, value) => {
     let words = value.split(/(\s+)/).filter((e) => e !== ' ');
     let out = {};
@@ -132,15 +132,14 @@ function sanityCheck(mapper, reducer, dataset, expected, done) {
         done(e);
       }
 
-            distribution.ncdc.mr.exec({keys: v, map: m1, reduce: r1}, (e, v) => {
-              try {
-                expect(v).toEqual(expect.arrayContaining(expected));
-                done();
-              } catch (e) {
-                done(e);
-              }
-            });
-
+      distribution.ncdc.mr.exec({keys: v, map: m1, reduce: r1}, (e, v) => {
+        try {
+          expect(v).toEqual(expect.arrayContaining(expected));
+          done();
+        } catch (e) {
+          done(e);
+        }
+      });
     });
   };
 
@@ -158,7 +157,7 @@ function sanityCheck(mapper, reducer, dataset, expected, done) {
       }
     });
   });
- });
+});
 
 
 test('(25 pts) all.mr:dlib', (done) => {

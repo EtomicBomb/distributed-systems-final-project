@@ -49,7 +49,7 @@ function MapReduce(gidConfig) {
   this.exec = ({keys, map, reduce, memory}, callback) => {
     this.jobsIssued += 1;
     const job = `${util.id.getNID(global.nodeConfig)}-${this.jobsIssued}`;
-    const memOrStore = memory ? 'mem' : 'store';
+    const memOrStore = memory === null ? gidConfig.memOrStore : (memory ? 'mem' : 'store');
     const {gid, hash} = gidConfig;
     doMap({job, map, gid, hash, memOrStore, key1s: keys, callback: (e, v) => doReduce({job, reduce, gid, callback})});
   };
