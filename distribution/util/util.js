@@ -6,6 +6,33 @@ function getActualKey(key, value) {
   return key === null ? id.getID(value) : key;
 }
 
+function callOnHolder(
+    {key, value, gid, hash, message, service, method, callback},
+) {
+  distribution.local.groups.get(gid, (e, nodes) => {
+    if (e) {
+      callback(e, null);
+      return;
+    }
+
+    nodes = Object.values(nodes);
+    nodes = nodes.map((node) => [id.getNID(node), node]);
+    nodes = Object.fromEntries(nodes);
+
+    let kid = value === null ? key : getActualKey(key, value);
+    kid = id.getID(kid);
+
+    const nid = hash(kid, Object.keys(nodes));
+    const node = nodes[nid];
+
+    distribution.local.comm.send(
+        message,
+        {node, service, method},
+        callback,
+    );
+  });
+}
+
 function defaultGIDConfig(gidConfig) {
   gidConfig = gidConfig || {};
   gidConfig.gid = gidConfig.gid || 'all';
@@ -63,6 +90,7 @@ module.exports = {
   defaultGIDConfig,
   sendToAll,
   getActualKey,
-  id: id,
-  wire: wire,
+  callOnHolder,
+  id,
+  wire,
 };

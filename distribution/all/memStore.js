@@ -1,32 +1,5 @@
 const util = require('../util/util');
 
-function callOnHolder(
-    {key, value, gid, hash, message, service, method, callback},
-) {
-  distribution.local.groups.get(gid, (e, nodes) => {
-    if (e) {
-      callback(e, null);
-      return;
-    }
-
-    nodes = Object.values(nodes);
-    nodes = nodes.map((node) => [util.id.getNID(node), node]);
-    nodes = Object.fromEntries(nodes);
-
-    let kid = value === null ? key : util.getActualKey(key, value);
-    kid = util.id.getID(kid);
-
-    const nid = hash(kid, Object.keys(nodes));
-    const node = nodes[nid];
-
-    distribution.local.comm.send(
-        message,
-        {node, service, method},
-        callback,
-    );
-  });
-}
-
 function MemStore(service, gidConfig) {
   gidConfig = util.defaultGIDConfig(gidConfig);
   const augment = (gidKey) => {
@@ -51,7 +24,7 @@ function MemStore(service, gidConfig) {
         },
       });
     } else {
-      callOnHolder({
+      util.callOnHolder({
         key,
         value: null,
         gid: gidConfig.gid,
@@ -64,7 +37,7 @@ function MemStore(service, gidConfig) {
     }
   };
   this.put = (value, key, callback) => {
-    callOnHolder({
+    util.callOnHolder({
       key,
       value,
       gid: gidConfig.gid,
@@ -76,7 +49,7 @@ function MemStore(service, gidConfig) {
     });
   };
   this.del = (key, callback) => {
-    callOnHolder({
+    util.callOnHolder({
       key,
       value: null,
       gid: gidConfig.gid,

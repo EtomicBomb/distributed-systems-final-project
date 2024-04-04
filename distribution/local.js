@@ -239,6 +239,92 @@ function RPC() {
   };
 };
 
+function MapReduceMapper() {
+  this.map = (map, job, gid, hash, key1, memOrStore, callback) => {
+    global.distribution.local[memOrStore].get({gid, key: key1}, (e, value1) => {
+      if (e) {
+        callback(e, null);
+        return;
+      }
+      let results = map(key1, value1);
+      results = Array.isArray(results) ? results : [results];
+      results = results.map((result) => Object.entries(result).flat());
+      let remaining = results.length;
+      const errors = [];
+      for (const [key2, value2] of results) {
+        util.callOnHolder({
+          key: key2,
+          value: null,
+          gid,
+          hash,
+          message: [job, key2, value2, memOrStore],
+          service: 'mapReduceReducer',
+          method: 'shuffle',
+          callback: (e, v) => {
+            remaining -= 1;
+            errors.push(e);
+            if (remaining > 0) {
+              return;
+            }
+            callback(errors, null);
+          },
+        });
+      };
+    });
+  };
+}
+
+function MapReduceReducer() {
+  this.jobToKey2ToValue2s = new Map();
+  this.shuffle = (job, key2, value2, memOrStore, callback) => {
+    if (!this.jobToKey2ToValue2s.has(job)) {
+      this.jobToKey2ToValue2s.set(job, new Map());
+    }
+    const key2ToValue2s = this.jobToKey2ToValue2s.get(job);
+    if (!key2ToValue2s.has(key2)) {
+      key2ToValue2s.set(key2, []);
+    }
+    key2ToValue2s.get(key2).push(value2);
+    callback(null, null);
+  };
+  this.reduce = (job, reduce, callback) => {
+    const key2ToValue2s = this.jobToKey2ToValue2s.get(job);
+    if (key2ToValue2s === undefined) {
+      callback(null, []);
+      return;
+    }
+    let results = [...key2ToValue2s].map(([key2, value2s]) => reduce(key2, value2s));
+    callback(null, results);
+  };
+}
+
+function MapReduceScheduler() {
+  this.jobCounter = 0;
+  this.jobs = new Map();
+  this.createJob = (nodeIDs, callback) => {
+    const jobID = this.jobCounter;
+    this.jobCounter += 1;
+
+    // create and return an RPC?
+    util.wire.createRPC(distribution.util.wire.toAsync(addOne));
+
+
+    return jobID;
+  };
+  this.completeJob = (jobID) => {
+    this.jobs.delete(jobID);
+  };
+  this.notify = (jobID, nid, ...message) => {
+    const job = this.jobs.get(jobID);
+    if (job === undefined) {
+      console.trace('job not found');
+      return;
+    }
+    const {callback} = job;
+    callback(nid, ...message);
+  };
+}
+
 function getGidKey(gidKey) {
   const gid = !gidKey || gidKey.gid === undefined ? 'all' : gidKey.gid;
   const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
@@ -291,42 +377,25 @@ function Mem() {
 }
 
 function Store() {
+  const nid = util.id.getNID(global.nodeConfig);
+  this.getLocationHead = (gid) => path.join(__dirname, '..', 'store', 'store', nid, gid);
   const getAll = (gid, nid, callback) => {
-    const correctPath = path.join(__dirname, '..', 'store');
-    fs.readdir(correctPath, {recursive: true, withFileTypes: true}, (e, v) => {
+    const path = this.getLocationHead(gid, nid);
+    fs.readdir(path, {}, (e, v) => {
       if (e) {
         callback(null, []);
         return;
       }
-      v = v
-          .map((dirent) => {
-            const split = dirent.path.split('/');
-            const key = Buffer.from(dirent.name, 'hex').toString();
-            return {
-              isFile: dirent.isFile(),
-              nid: split[split.length-2],
-              group: split[split.length-1],
-              key,
-            };
-          })
-          .filter(({isFile, nid: n, group, name}) => isFile && n == nid)
-          .map(({key}) => key);
+      v = v.map((key) => Buffer.from(key, 'hex').toString());
       callback(null, v);
     });
   };
-  const nid = util.id.getNID(global.nodeConfig);
   this.getLocation = (key, gid, create) => {
-    key = Buffer.from(key).toString('hex');
-    const head = path.join(
-        __dirname,
-        '..',
-        'store',
-        nid,
-        gid,
-    );
+    const head = this.getLocationHead(gid, create);
     if (create) {
       fs.mkdirSync(head, {recursive: true});
     }
+    key = Buffer.from(key).toString('hex');
     return path.join(head, key);
   };
   this.get = (gidKey, callback) => {
@@ -381,5 +450,8 @@ routes.comm = new Comm();
 routes.rpc = new RPC();
 routes.mem = new Mem();
 routes.store = new Store();
+routes.mapReduceMapper = new MapReduceMapper();
+routes.mapReduceReducer = new MapReduceReducer();
+routes.mapReduceScheduler = new MapReduceScheduler();
 
 module.exports = routes;
