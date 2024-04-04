@@ -73,7 +73,6 @@ function sequence(functions, args, callback) {
     callback(null, args);
       return;
   }
-    console.trace(functions, functions.length);
   functions[0]((...as) => sequence(functions.slice(1), as, callback), ...args);
 }
 
@@ -122,7 +121,6 @@ function runWorkflow(gid, callback) {
     (callback, _, keys) => distribution[gid].mr.exec({keys, map: m2, reduce: r2}, callback),
     (callback, e, v) => {
       result = v;
-        console.trace(e, v);
       callback(null, null);
     },
     ...nodes.map((node) => ((callback) => distribution.local.comm.send([], {service: 'status', method: 'stop', node}, callback))),

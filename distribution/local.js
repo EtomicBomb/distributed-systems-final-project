@@ -103,7 +103,6 @@ function Groups() {
   };
   this.put = (gidConfig, group, callback) => {
     callback = callback || function() {};
-      console.trace(global.nodeConfig);
     const gid = gidConfig.gid || gidConfig;
     this.gidToGroup.set(gid, group);
     this.putInDistribution(gidConfig);
