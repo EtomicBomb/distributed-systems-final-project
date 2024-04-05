@@ -11,6 +11,7 @@ async function crawler(gid, callback) {
     {ip: '127.0.0.1', port: 7110},
     {ip: '127.0.0.1', port: 7111},
     {ip: '127.0.0.1', port: 7112},
+    {ip: '127.0.0.1', port: 7113},
   ];
   let group = nodes.map((node) => [distribution.util.id.getSID(node), node]);
   group = Object.fromEntries(group);
