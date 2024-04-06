@@ -1,4 +1,4 @@
-const util = require('../util/util.js');
+const util = require('../util/util');
 const crypto = require('node:crypto');
 
 function Gossip(gidConfig) {

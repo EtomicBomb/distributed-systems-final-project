@@ -1,4 +1,3 @@
-const {promisify} = require('node:util');
 const util = require('../util/util');
 
 async function doMap({job, map, gid, hash, memOrStore, key1s}) {

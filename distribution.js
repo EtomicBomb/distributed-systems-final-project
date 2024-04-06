@@ -12,13 +12,6 @@ global.nodeConfig = global.nodeConfig || {
   },
 };
 
-/*
-    As a debugging tool, you can pass ip and port arguments directly.
-    This is just to allow for you to easily startup nodes from the terminal.
-
-    Usage:
-    ./distribution.js --ip '127.0.0.1' --port 1234
-  */
 if (args.ip) {
   global.nodeConfig.ip = args.ip;
 }
@@ -36,20 +29,20 @@ if (args.config) {
         nodeConfig.onStart : global.nodeConfig.onStart;
 }
 
-
 const distribution = {
   util: require('./distribution/util/util.js'),
   local: require('./distribution/local'),
+  localAsync: require('./distribution/localAsync'),
   node: require('./distribution/node'),
 };
 
 global.distribution = distribution;
-
 module.exports = distribution;
 
-global.distribution.local.groups.putInDistribution('all');
+distribution.localAsync.groups.putInDistribution('all');
 
 /* The following code is run when distribution.js is run directly */
 if (require.main === module) {
   distribution.node.start(global.nodeConfig.onStart);
 }
+

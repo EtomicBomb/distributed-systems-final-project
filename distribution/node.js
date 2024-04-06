@@ -1,67 +1,39 @@
 const http = require('node:http');
-const local = require('./local');
+const localAsync = require('./localAsync');
 const util = require('./util/util');
 
-const start = function(started) {
+async function handleConnection(req) {
+  localAsync.status.incrementCount();
+  // http://node_ip:node_port/service/method
+  let body = [];
+  req.on('data', (chunk) => body.push(chunk));
+  await new Promise((resolve) => req.on('end', resolve));
+  body = Buffer.concat(body).toString();
+  body = util.deserialize(body, (expr) => eval(expr));
+  let [, service, method] = req.url.match(/^\/(.*)\/(.*)$/);
+  service = await distribution.localAsync.routes.get(service);
+;
+  return await new Promise((callback) => service[method].call(service, ...body, (...ev) => callback(ev)));
+}
+
+function start(started) {
   const server = http.createServer((req, res) => {
-    const callback = (e, v) => {
-      res.writeHead(400, {'Content-Type': 'application/json'});
-      res.end(util.serialize([e, v]));
-    };
-
-    if (req.method !== 'POST') {
-      callback(new Error('we only accept post requests'), null);
-      return;
-    }
-
-    local.status.incrementCount(); // XXX
-
-    const serviceMethod = req.url.match(/^\/(.*)\/(.*)$/); // http://node_ip:node_port/service/method
-
-    if (serviceMethod === null) {
-      callback(new Error(`could not parse url string ${req.url}`), null);
-      return;
-    }
-
-    [, service, method] = serviceMethod;
-
-    let body = [];
-    req
-        .on('data', function(chunk) {
-          body.push(chunk);
+    handleConnection(req)
+        .then((ev) => {
+          res.writeHead(400, {'Content-Type': 'application/json'});
+          res.end(util.serialize(ev));
         })
-        .on('end', function() {
-          body = Buffer.concat(body).toString();
-          try {
-            body = util.deserialize(body, (expr) => eval(expr));
-          } catch (e) {
-            callback(new Error(`could not parse json ${body}: ${e}`), null);
-            return;
-          }
-          local.routes.get(service, (e, service) => {
-            if (e) {
-              callback(e, null);
-              return;
-            }
-            if (service[method] === undefined) {
-              callback(new Error(`could not find method ${method}`), null);
-              return;
-            }
-            service[method].call(service, ...body, callback);
-          });
+        .catch((e) => {
+            console.trace(e);
+          res.writeHead(500, {'Content-Type': 'application/json'});
+          res.end(util.serialize([e, null]));
         });
   });
 
   server.listen(global.nodeConfig.port, global.nodeConfig.ip, () => {
-    local.status.registerServer(server);
-    started(
-        server,
-        global.nodeConfig,
-        (...args) => {},
-    );
+    localAsync.status.registerServer(server);
+    started(server, global.nodeConfig, (...args) => {});
   });
 };
 
-module.exports = {
-  start: start,
-};
+module.exports = { start };

@@ -1,23 +1,17 @@
-const serialization = require('./serialization');
+const {promisify} = require('node:util');
 
 function createRPC(func) {
-  const installation = global.distribution.local.rpc.install(func);
-  let stub;
-  stub = (...args) => {
+  const installation = distribution.localAsync.rpc.install(promisify(func));
+  return eval(`(...args) => {
     const callback = args.pop() || function() {};
-    let message = [args, `__INSTALLATION_ID__`];
-    let remote = {
-      node: {port: `__NODE_PORT__`, ip: `__NODE_IP__`},
-      service: `rpc`,
-      method: `call`,
-    };
-    global.distribution.local.comm.send(message, remote, callback);
-  };
-  stub = serialization.serialize(stub)
-      .replace('__NODE_IP__', global.nodeConfig.ip)
-      .replace('`__NODE_PORT__`', global.nodeConfig.port)
-      .replace('`__INSTALLATION_ID__`', installation);
-  return serialization.deserialize(stub, (expr) => eval(expr));
+    let message = [args, ${JSON.stringify(installation)}];
+    const node = ${JSON.stringify(global.nodeConfig)};
+    const service = 'rpc';
+    const method = 'call';
+    global.distribution.localAsync.comm.send(message, {node, service, method})
+      .then(v => callback(null, v))
+      .catch(e => callback(e, null));
+  }`);
 }
 
 /*

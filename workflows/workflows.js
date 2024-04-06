@@ -1,6 +1,3 @@
-const readline = require('readline');
-const {URL} = require('url');
-const {convert} = require('html-to-text');
 const {promisify} = require('node:util');
 
 global.nodeConfig = {ip: '127.0.0.1', port: 7070};
@@ -29,7 +26,7 @@ async function crawler(gid, callback) {
 
   const server = await new Promise((cb) => distribution.node.start(cb));
   for (const node of nodes) {
-    await promisify((cb) => distribution.local.status.spawn(node, cb))();
+    await distribution.localAsync.status.spawn(node);
   }
   await new Promise((cb) => {
     require('../distribution/all/groups')(gidConfig)
@@ -48,7 +45,10 @@ async function crawler(gid, callback) {
     index += 1;
   }
 
-  let result; let mapper; let reducer; let keys;
+  let result;
+  let mapper;
+  let reducer;
+  let keys;
 
   keys = dummyKeys;
   mapper = eval(`(
@@ -68,17 +68,13 @@ async function crawler(gid, callback) {
   keys = urls.map((url) => 'content '+url);
   mapper = eval(`
   async (contentUrl, body) => {
-      const {promisify} = require('node:util');
-      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
       const bareUrl = contentUrl.split(' ')[1];
       const urls = distribution.util.getUrls(bareUrl, body);
-      const ret = urls.map(url => ({[bareUrl]: url}));
-      return ret;
+      return urls.map(url => ({[bareUrl]: url}));
   };
   `);
   reducer = eval(`
   async (bareUrl, urlsInSource) => {
-      const {promisify} = require('node:util');
       const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
       await new Promise((res) => distribution[gid][memOrStore].put(urlsInSource, {key: 'urls '+bareUrl, gid}, res));
       return {[bareUrl]: null};
@@ -92,8 +88,6 @@ async function crawler(gid, callback) {
   keys = urls.map((url) => 'urls '+url);
   mapper = eval(`
   async (urlsUrl, urls) => {
-      const {promisify} = require('node:util');
-      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
       const bareUrl = urlsUrl.split(' ')[1];
       return urls.map(url => ({[url]: bareUrl}));
   };
@@ -103,20 +97,20 @@ async function crawler(gid, callback) {
       return {[url]: [...new Set(bareUrls)]};
   };
   `);
-  //      const {promisify} = require('node:util');
-  //      const {gid,memOrStore} = ${JSON.stringify(gidConfig)};
-  //      await new Promise((res) => distribution[gid][memOrStore].put(bareUrls, {key: 'reverse '+url, gid}, res));
   result = await promisify((cb) => {
     require('../distribution/all/mr')(gidConfig)
         .exec({keys, map: mapper, reduce: reducer}, cb);
   })();
 
   for (const node of nodes) {
-    await promisify((cb) => distribution.local.comm.send([], {service: 'status', method: 'stop', node}, cb))();
+    await distribution.localAsync.comm.send([], {service: 'status', method: 'stop', node});
   }
   await promisify((cb) => server.close(cb))();
   return result;
 }
+
+crawler('crawl', console.log).then(console.log).catch((c) => console.error('error2', c));
+
 
 /*
 
@@ -283,6 +277,4 @@ function urlExtraction(gid, callback) {
 
 // runWorkflow('hello', console.log).then(console.log).catch((c) => console.error('error2', c));
 // rm -rf store/store; pkill node; clear && node workflows/workflows.js
-
-crawler('crawl', console.log).then(console.log).catch((c) => console.error('error2', c));
 

@@ -1,5 +1,4 @@
 const https = require('node:https');
-const {promisify} = require('node:util');
 const {JSDOM} = require('jsdom');
 const serialization = require('./serialization');
 const id = require('./id');
@@ -12,7 +11,7 @@ function getActualKey(key, value) {
 async function callOnHolder(
     {key, value, gid, hash, message, service, method},
 ) {
-  let nodes = await promisify((cb) => distribution.local.groups.get(gid, cb))();
+  let nodes = await distribution.localAsync.groups.get(gid);
 
   nodes = Object.values(nodes);
   nodes = nodes.map((node) => [id.getNID(node), node]);
@@ -24,13 +23,10 @@ async function callOnHolder(
   const nid = hash(kid, Object.keys(nodes));
   const node = nodes[nid];
 
-  return await promisify((cb) => {
-    distribution.local.comm.send(
-        message,
-        {node, service, method},
-        cb,
-    );
-  })();
+  return await distribution.localAsync.comm.send(
+      message,
+      {node, service, method},
+  );
 }
 
 function defaultGIDConfig(gidConfig) {
@@ -43,7 +39,7 @@ function defaultGIDConfig(gidConfig) {
 }
 
 async function sendToAll({message, service, method, callback, gid, exclude, subset}) {
-  let nodes = await promisify((cb) => distribution.local.groups.get(gid, cb))();
+  let nodes = await distribution.localAsync.groups.get(gid);
   nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
   if (subset) {
     const newNodes = [];
@@ -54,20 +50,20 @@ async function sendToAll({message, service, method, callback, gid, exclude, subs
     }
     nodes = newNodes;
   }
+  const sendToNode = async (node) => {
+    return await distribution.localAsync.comm.send(message, {node, service, method});
+  };
   let sidToValue = {};
   let sidToError = {};
-  for (const node of nodes) {
-    const sid = id.getSID(node);
-    const [e, v] = await new Promise((cb) =>
-      distribution.local.comm.send(
-          message, {node, service, method}, (e, v) => cb([e, v]),
-      ),
-    );
-    if (e !== null) {
-      sidToError[sid] = e;
+  const settled = await Promise.allSettled(nodes.map(sendToNode));
+  for (let i = 0; i < nodes.length; i++) {
+    const sid = id.getSID(nodes[i]);
+    const {status, value, reason} = settled[i];
+    if (status === 'fulfilled' && value !== null) {
+      sidToValue[sid] = value;
     }
-    if (v !== null) {
-      sidToValue[sid] = v;
+    if (status === 'rejected' && reason != null) {
+      sidToError[sid] = reason;
     }
   }
   return [sidToError, sidToValue];
