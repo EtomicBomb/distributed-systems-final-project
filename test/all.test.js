@@ -117,10 +117,10 @@ beforeAll((done) => {
   });
 });
 
-// afterAll((done) => {
-//  distribution.mygroup.status.stop((e, v) => {
-//    let remote = {service: 'status', method: 'stop'};
-//    remote.node = n1;
+ afterAll((done) => {
+  distribution.mygroup.status.stop((e, v) => {
+    let remote = {service: 'status', method: 'stop'};
+    remote.node = n1;
 //    distribution.local.comm.send([], remote, (e, v) => {
 //      remote.node = n2;
 //      distribution.local.comm.send([], remote, (e, v) => {
@@ -140,8 +140,8 @@ beforeAll((done) => {
 //        });
 //      });
 //    });
-//  });
-// });
+  });
+ });
 
 test('(2 pts) all.status.spawn/stop()', (done) => {
   // Spawn a node
@@ -173,7 +173,7 @@ test('(2 pts) all.status.spawn/stop()', (done) => {
       }
       remote = {node: nodeToSpawn, service: 'status', method: 'get'};
 
-      console.trace('4', e, v);
+      console.trace('4', e, v, Date.now());
       // Ping the node again, it shouldn't respond
       distribution.local.comm.send(['nid'], remote, (e, v) => {
         console.trace('5', e, v);

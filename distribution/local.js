@@ -10,7 +10,7 @@ function callbackify(service, method) {
       // they did not the callback, ignore the promise
       method.call(service, ...args);
     } else {
-      throw new Error(`wrong number of arguments for ${method.name}: found ${args.length}, expected ${method.length}`);
+      throw new Error(`wrong number of arguments for ${method.toString()}: found ${args.length}, expected ${method.length} ${args}`);
     }
   };
 }
