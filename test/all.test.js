@@ -117,7 +117,7 @@ beforeAll((done) => {
   });
 });
 
- afterAll((done) => {
+afterAll((done) => {
   distribution.mygroup.status.stop((e, v) => {
     let remote = {service: 'status', method: 'stop'};
     remote.node = n1;
@@ -141,51 +141,8 @@ beforeAll((done) => {
       });
     });
   });
- });
-
-test('(2 pts) all.status.spawn/stop()', (done) => {
-  // Spawn a node
-  const nodeToSpawn = {ip: '127.0.0.1', port: 8008};
-
-  // Spawn the node
-  distribution.group4.status.spawn(nodeToSpawn, (e, v) => {
-    try {
-      expect(e).toBeFalsy();
-      expect(v.ip).toEqual(nodeToSpawn.ip);
-      expect(v.port).toEqual(nodeToSpawn.port);
-    } catch (error) {
-      done(error);
-    }
-    remote = {node: nodeToSpawn, service: 'status', method: 'stop'};
-
-    // Stop the node
-    distribution.local.comm.send([], remote, (e, v) => {
-      try {
-        expect(e).toBeFalsy();
-        expect(v.ip).toEqual(nodeToSpawn.ip);
-        expect(v.port).toEqual(nodeToSpawn.port);
-      } catch (error) {
-        done(error);
-      }
-      remote = {node: nodeToSpawn, service: 'status', method: 'get'};
-
-      // Ping the node again, it shouldn't respond
-      distribution.local.comm.send(['nid'], remote, (e, v) => {
-        console.trace('5', e, v);
-        try {
-          expect(e).toBeDefined();
-          expect(e).toBeInstanceOf(Error);
-          expect(v).toBeFalsy();
-          done();
-        } catch (error) {
-          done(error);
-        }
-      });
-    });
-  });
 });
 
-/*
 // ---all.comm---
 
 test('(4 pts) all.comm.send(status.get(nid))', (done) => {
@@ -460,6 +417,72 @@ test('(2 pts) all.status.get(random)', (done) => {
   });
 });
 
+test('(2 pts) all.status.spawn/stop()', (done) => {
+  // Spawn a node
+  const nodeToSpawn = {ip: '127.0.0.1', port: 8008};
+
+  // Spawn the node
+  distribution.group4.status.spawn(nodeToSpawn, (e, v) => {
+    try {
+      expect(e).toBeFalsy();
+      expect(v.ip).toEqual(nodeToSpawn.ip);
+      expect(v.port).toEqual(nodeToSpawn.port);
+    } catch (error) {
+      done(error);
+    }
+    remote = {node: nodeToSpawn, service: 'status', method: 'get'};
+    message = [
+      'nid', // configuration
+    ];
+
+    // Ping the node, it should respond
+    distribution.local.comm.send(message, remote, (e, v) => {
+      try {
+        expect(e).toBeFalsy();
+        expect(v).toBe(id.getNID(nodeToSpawn));
+      } catch (error) {
+        done(error);
+      }
+
+      distribution.local.groups.get('group4', (e, v) => {
+        try {
+          expect(e).toBeFalsy();
+          expect(v[id.getSID(nodeToSpawn)]).toBeDefined();
+        } catch (error) {
+          done(error);
+        }
+
+        remote = {node: nodeToSpawn, service: 'status', method: 'stop'};
+
+        // Stop the node
+        distribution.local.comm.send([], remote, (e, v) => {
+          try {
+            expect(e).toBeFalsy();
+            expect(v.ip).toEqual(nodeToSpawn.ip);
+            expect(v.port).toEqual(nodeToSpawn.port);
+          } catch (error) {
+            done(error);
+          }
+          remote = {node: nodeToSpawn, service: 'status', method: 'get'};
+
+          // Ping the node again, it shouldn't respond
+          distribution.local.comm.send(message,
+              remote, (e, v) => {
+                try {
+                  expect(e).toBeDefined();
+                  expect(e).toBeInstanceOf(Error);
+                  expect(v).toBeFalsy();
+                  done();
+                } catch (error) {
+                  done(error);
+                }
+              });
+        });
+      });
+    });
+  });
+});
+
 // ---all.gossip---
 
 test('(6 pts) all.gossip.send()', (done) => {
@@ -474,13 +497,13 @@ test('(6 pts) all.gossip.send()', (done) => {
     distribution.mygroup.gossip.send(message, remote, (e, v) => {
       setTimeout(() => {
         distribution.mygroup.groups.get('newgroup', (e, v) => {
-
           let count = 0;
           for (const k in v) {
             if (Object.keys(v[k]).length > 0) {
               count++;
             }
           }
+          /* Gossip only provides weak guarantees */
           try {
             expect(count).toBeGreaterThanOrEqual(2);
             count;
@@ -854,6 +877,8 @@ test(
     },
 );
 
+/*
+
 test('(2 pts) all.store.reconf(naiveHash)', (done) => {
   //  ________________________________________
   // / NOTE: If this test fails locally, make \
@@ -1003,5 +1028,4 @@ test('(2 pts) all.store.reconf(naiveHash)', (done) => {
     });
   });
 });
-
 */
