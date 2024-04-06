@@ -9,17 +9,16 @@ async function handleConnection(req, server) {
   req.on('data', (chunk) => message.push(chunk));
   await new Promise((resolve) => req.on('end', resolve));
   message = Buffer.concat(message).toString();
-  ({message, node} = util.deserialize(message, (expr) => eval(expr)));
+  message = util.deserialize(message, (expr) => eval(expr));
   let [, service, method] = req.url.match(/^\/(.*)\/(.*)$/);
   service = await distribution.localAsync.routes.get(service);
   const [e, v] = await new Promise((callback) =>
     service[method].call(service, ...message, (...ev) => callback(ev)));
   if (e instanceof Error && e.message === 'handleClose') {
+      const [closeToken, node] = message;
     const remote = {node, service: 'handleClose', method: 'handleClose'};
-    const start = Date.now();
     server.close(() => {
-        console.trace('finish close', Date.now() - start);
-        localAsync.comm.send(message, remote).then();
+        localAsync.comm.send([closeToken], remote).then();
     });
     return [null, global.nodeConfig];
   }

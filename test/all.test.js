@@ -121,25 +121,25 @@ beforeAll((done) => {
   distribution.mygroup.status.stop((e, v) => {
     let remote = {service: 'status', method: 'stop'};
     remote.node = n1;
-//    distribution.local.comm.send([], remote, (e, v) => {
-//      remote.node = n2;
-//      distribution.local.comm.send([], remote, (e, v) => {
-//        remote.node = n3;
-//        distribution.local.comm.send([], remote, (e, v) => {
-//          remote.node = n4;
-//          distribution.local.comm.send([], remote, (e, v) => {
-//            remote.node = n5;
-//            distribution.local.comm.send([], remote, (e, v) => {
-//              remote.node = n6;
-//              distribution.local.comm.send([], remote, (e, v) => {
-//                localServer.close();
-//                done();
-//              });
-//            });
-//          });
-//        });
-//      });
-//    });
+    distribution.local.comm.send([], remote, (e, v) => {
+      remote.node = n2;
+      distribution.local.comm.send([], remote, (e, v) => {
+        remote.node = n3;
+        distribution.local.comm.send([], remote, (e, v) => {
+          remote.node = n4;
+          distribution.local.comm.send([], remote, (e, v) => {
+            remote.node = n5;
+            distribution.local.comm.send([], remote, (e, v) => {
+              remote.node = n6;
+              distribution.local.comm.send([], remote, (e, v) => {
+                localServer.close();
+                done();
+              });
+            });
+          });
+        });
+      });
+    });
   });
  });
 
@@ -147,10 +147,8 @@ test('(2 pts) all.status.spawn/stop()', (done) => {
   // Spawn a node
   const nodeToSpawn = {ip: '127.0.0.1', port: 8008};
 
-  console.trace('0');
   // Spawn the node
   distribution.group4.status.spawn(nodeToSpawn, (e, v) => {
-    console.trace('1');
     try {
       expect(e).toBeFalsy();
       expect(v.ip).toEqual(nodeToSpawn.ip);
@@ -160,10 +158,8 @@ test('(2 pts) all.status.spawn/stop()', (done) => {
     }
     remote = {node: nodeToSpawn, service: 'status', method: 'stop'};
 
-    console.trace('2', nodeToSpawn);
     // Stop the node
     distribution.local.comm.send([], remote, (e, v) => {
-      console.trace('3', e, v);
       try {
         expect(e).toBeFalsy();
         expect(v.ip).toEqual(nodeToSpawn.ip);
@@ -173,7 +169,6 @@ test('(2 pts) all.status.spawn/stop()', (done) => {
       }
       remote = {node: nodeToSpawn, service: 'status', method: 'get'};
 
-      console.trace('4', e, v, Date.now());
       // Ping the node again, it shouldn't respond
       distribution.local.comm.send(['nid'], remote, (e, v) => {
         console.trace('5', e, v);

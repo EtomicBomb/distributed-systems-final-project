@@ -31,9 +31,10 @@ function Status(gidConfig) {
       gid: gidConfig.gid,
       exclude: util.id.getSID(global.nodeConfig),
       subset: null,
-    }).then(([es, vs]) => {
-      global.distribution.local.status.stop(callback);
-    });
+    }).then(([es, vs]) => callback(es, vs));
+//    }).then(([es, vs]) => {
+//      global.distribution.local.status.stop(callback);
+//    });
   };
   this.spawn = (config, callback) => {
     global.distribution.local.status.spawn(config, (e, node) => {
