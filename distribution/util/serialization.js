@@ -63,8 +63,13 @@ const formats = [
   {
     matches: (object) => object instanceof Error,
     kind: 'error',
-    ser: (object) => ({message: object.message, cause: object.cause}),
-    de: ({message, cause}, evil) => new Error(message, {cause}),
+    ser: (object) =>
+      ({message: object.message, cause: object.cause, stack: object.stack}),
+    de: ({message, cause, stack}, evil) => {
+      const ret = new Error(message, {cause});
+        ret.stack = `${ret.stack}\n${stack.split('\n').slice(1).join('\n')}`;
+      return ret;
+    },
   },
 ];
 

@@ -9,20 +9,19 @@ const local = require('./distribution/local');
 const {putInDistribution} = require('./distribution/all');
 
 function optional(key, value) {
-    return value === undefined ? {} : {key: value};
+  return value ? {[key]: value} : {};
 }
 
-const nodeConfig = args.config ? util.deserialize(args.config) : {};
-
+const argsConfig = args.config ? util.deserialize(args.config) : {};
 global.nodeConfig = {
   ip: '127.0.0.1',
   port: 8080,
-  onStart: () => console.log('Node started!'),
-    ...optional('ip', args.ip),
-    ...optional('port', parseInt(args.port)),
-    ...optional('ip', nodeConfig.ip),
-    ...optional('port', nodeConfig.port),
-    ...optional('onStart', nodeConfig.onStart),
+  onStart: (server, node, callback) => console.log('Node started!'),
+  ...optional('ip', args.ip),
+  ...optional('port', parseInt(args.port)),
+  ...optional('ip', argsConfig.ip),
+  ...optional('port', argsConfig.port),
+  ...optional('onStart', argsConfig.onStart),
 };
 
 async function handleConnection(req, server) {
@@ -41,7 +40,7 @@ async function handleConnection(req, server) {
     const [closeToken, node] = message;
     const remote = {node, service: 'handleClose', method: 'handleClose'};
     server.close(() => {
-        // no await
+      // no await
       local.async.comm.send([closeToken], remote);
     });
     return [null, global.nodeConfig];
@@ -64,7 +63,7 @@ function start(started) {
   });
 
   server.listen(global.nodeConfig.port, global.nodeConfig.ip, () => {
-    started(server);
+    started(server, global.nodeConfig, () => {});
   });
 }
 
@@ -74,6 +73,8 @@ module.exports = global.distribution = {
   node: {start},
 };
 
+// no await
+local.async.groups.registerKnownNode(global.nodeConfig);
 putInDistribution({gid: 'all'});
 
 /* The following code is run when distribution.js is run directly */

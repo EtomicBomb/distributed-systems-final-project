@@ -62,7 +62,7 @@ async function sendToAll({message, service, method, gid, exclude, subset}) {
 async function getPageContents(url) {
   url = new URL(url);
   let body = [];
-  return await new Promise((resolve, reject) => {
+  await new Promise((resolve, reject) => {
     https.request(url, (res) => {
       res.on('data', (chunk) => body.push(chunk));
       res.on('end', resolve);

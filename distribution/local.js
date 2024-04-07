@@ -2,7 +2,7 @@ const http = require('node:http');
 const path = require('node:path');
 const {randomUUID} = require('node:crypto');
 const process = require('node:process');
-const {unlink, readdir, writeFile, readFile} = require('node:fs/promises');
+const {unlink, readdir, mkdir, writeFile, readFile} = require('node:fs/promises');
 const childProcess = require('node:child_process');
 const fs = require('node:fs');
 
@@ -68,7 +68,6 @@ function Groups() {
   this.registerKnownNode = async (node) => {
     this.all[util.id.getSID(node)] = node;
   };
-  this.registerKnownNode(global.nodeConfig);
   this.get = async (gid) => {
     if (gid === 'local') {
       return {[util.id.getSID(global.nodeConfig)]: global.nodeConfig};
@@ -123,9 +122,15 @@ function Gossip() {
       return;
     }
     this.received.add(mid);
-    distribution[gid].async.gossip.send(message, {service, method});
+    // no await
+    distribution[gid].async.gossip.sendMID(mid, message, {service, method});
     service = await distribution.local.async.routes.get(service);
-    return await service[method].call(service, ...message);
+    const [e, v] = await new Promise((resolve) =>
+      service[method].call(service, ...message, resolve));
+    if (isError(e)) {
+      throw e;
+    }
+    return v;
   };
 };
 
@@ -305,21 +310,25 @@ function Mem() {
 }
 
 function Store() {
-  const nid = util.id.getNID(global.nodeConfig);
-  this.getLocationHead = (gid) => path.join(__dirname, '..', 'store', 'store', nid, gid);
-  const getAll = async (gid, nid) => {
+  const getLocationHead = (gid) => path.join(
+      __dirname,
+      '../store/store',
+      util.id.getNID(global.nodeConfig),
+      gid,
+  );
+  const getAll = async (gid) => {
     let paths;
     try {
-      paths = await readdir(this.getLocationHead(gid, nid));
+      paths = await readdir(getLocationHead(gid));
     } catch (e) {
       paths = [];
     }
     return paths.map((key) => decodeURIComponent(key));
   };
-  this.getLocation = async (key, gid, create) => {
-    const head = this.getLocationHead(gid, create);
+  const getLocation = async (key, gid, create) => {
+    const head = getLocationHead(gid);
     if (create) {
-      fs.mkdirSync(head, {recursive: true});
+      await mkdir(head, {recursive: true});
     }
     key = encodeURIComponent(key);
     return path.join(head, key);
@@ -327,11 +336,11 @@ function Store() {
   this.get = async (gidKey) => {
     let {gid, key} = getGidKey(gidKey);
     if (key === null) {
-      return await getAll(gid, nid);
+      return await getAll(gid);
     }
     let value;
     try {
-      value = await readFile(await this.getLocation(key, gid, false));
+      value = await readFile(await getLocation(key, gid, false));
     } catch (e) {
       throw new Error(`could not find ${e}`, {cause: e});
     }
@@ -340,13 +349,13 @@ function Store() {
   this.put = async (value, gidKey) => {
     let {gid, key} = getGidKey(gidKey);
     key = util.getActualKey(key, value);
-    await writeFile(await this.getLocation(key, gid, true), util.serialize(value));
+    await writeFile(await getLocation(key, gid, true), util.serialize(value));
     return value;
   };
   this.del = async (gidKey) => {
     const ret = await this.get(gidKey);
     let {gid, key} = getGidKey(gidKey);
-    await unlink(await this.getLocation(key, gid, false));
+    await unlink(await getLocation(key, gid, false));
     return ret;
   };
 }
@@ -365,8 +374,12 @@ const routes = {
   handleClose: new HandleClose(),
 };
 
-function callbackify(service, method) {
-  return (...args) => {
+function mapValues(x, func) {
+  return Object.fromEntries(Object.entries(x).map(([k, v]) => [k, func(v)]));
+}
+
+function serviceToCallbackService(service) {
+  return mapValues(service, (method) => (...args) => {
     if (args.length === method.length + 1) {
       const callback = args.pop();
       Promise.resolve(method.call(service, ...args))
@@ -379,16 +392,7 @@ function callbackify(service, method) {
     } else {
       throw new Error(`wrong number of arguments for ${method.toString()}: found ${args.length}, expected ${method.length} ${args}`);
     }
-  };
-}
-
-function mapValues(x, func) {
-  return Object.fromEntries(
-      Object.entries(x).map(([k, v]) => [k, func(v)]));
-}
-
-function serviceToCallbackService(service) {
-  return mapValues(service, (method) => callbackify(service, method));
+  });
 }
 
 module.exports = {
