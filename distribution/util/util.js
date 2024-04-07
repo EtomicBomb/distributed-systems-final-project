@@ -1,8 +1,8 @@
 const https = require('node:https');
+const {promisify} = require('node:util');
 const {JSDOM} = require('jsdom');
 const serialization = require('./serialization');
 const id = require('./id');
-const wire = require('./wire');
 
 function getActualKey(key, value) {
   return key === null ? id.getID(value) : key;
@@ -11,7 +11,7 @@ function getActualKey(key, value) {
 async function callOnHolder(
     {key, value, gid, hash, message, service, method},
 ) {
-  let nodes = await distribution.localAsync.groups.get(gid);
+  let nodes = await distribution.local.async.groups.get(gid);
 
   nodes = Object.values(nodes);
   nodes = nodes.map((node) => [id.getNID(node), node]);
@@ -23,23 +23,14 @@ async function callOnHolder(
   const nid = hash(kid, Object.keys(nodes));
   const node = nodes[nid];
 
-  return await distribution.localAsync.comm.send(
+  return await distribution.local.async.comm.send(
       message,
       {node, service, method},
   );
 }
 
-function defaultGIDConfig(gidConfig) {
-  gidConfig = gidConfig || {};
-  gidConfig.gid = gidConfig.gid || 'all';
-  gidConfig.subset = gidConfig.subset || ((lst) => 3);
-  gidConfig.hash = gidConfig.hash || id.naiveHash;
-  gidConfig.memOrStore = 'store';
-  return gidConfig;
-}
-
-async function sendToAll({message, service, method, callback, gid, exclude, subset}) {
-  let nodes = await distribution.localAsync.groups.get(gid);
+async function sendToAll({message, service, method, gid, exclude, subset}) {
+  let nodes = await distribution.local.async.groups.get(gid);
   nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
   if (subset) {
     const newNodes = [];
@@ -50,12 +41,11 @@ async function sendToAll({message, service, method, callback, gid, exclude, subs
     }
     nodes = newNodes;
   }
-  const sendToNode = async (node) => {
-    return await distribution.localAsync.comm.send(message, {node, service, method});
-  };
   let sidToValue = {};
   let sidToError = {};
-  const settled = await Promise.allSettled(nodes.map(sendToNode));
+  const settled = await Promise.allSettled(nodes.map(async (node) =>
+    await distribution.local.async.comm.send(message, {node, service, method}),
+  ));
   for (let i = 0; i < nodes.length; i++) {
     const sid = id.getSID(nodes[i]);
     const {status, value, reason} = settled[i];
@@ -71,23 +61,16 @@ async function sendToAll({message, service, method, callback, gid, exclude, subs
 
 async function getPageContents(url) {
   url = new URL(url);
+  let body = [];
   return await new Promise((resolve, reject) => {
     https.request(url, (res) => {
-      let body = [];
-      res
-          .on('data', (chunk) => {
-            body.push(chunk);
-          })
-          .on('end', () => {
-            body = Buffer.concat(body).toString();
-            resolve({body, status: res.statusCode});
-          });
+      res.on('data', (chunk) => body.push(chunk));
+      res.on('end', resolve);
     })
-        .on('error', (e) => {
-          reject(e);
-        })
+        .on('error', reject)
         .end();
   });
+  return Buffer.concat(body).toString();
 }
 
 function getUrls(url, body) {
@@ -107,15 +90,44 @@ function getUrls(url, body) {
   return ret;
 }
 
+function asyncRPC(func) {
+  const installation = distribution.local.async.rpc.install(func);
+  return eval(`(...args) => {
+    const callback = args.pop() || function() {};
+    let message = [args, ${JSON.stringify(installation)}];
+    const node = ${JSON.stringify(global.nodeConfig)};
+    const service = 'rpc';
+    const method = 'call';
+    global.distribution.local.async.comm.send(message, {node, service, method})
+      .then(v => callback(null, v))
+      .catch(e => callback(e, null));
+  }`);
+}
+
+function createRPC(func) {
+  return asyncRPC(promisify(func));
+}
+
+function toAsync(func) {
+  return function(...args) {
+    const callback = args.pop() || function() {};
+    try {
+      const result = func(...args);
+      callback(null, result);
+    } catch (error) {
+      callback(error, null);
+    }
+  };
+}
+
 module.exports = {
   serialize: serialization.serialize,
   deserialize: serialization.deserialize,
-  defaultGIDConfig,
   sendToAll,
   getActualKey,
   callOnHolder,
   getPageContents,
   getUrls,
   id,
-  wire,
+  wire: {createRPC, asyncRPC, toAsync},
 };
