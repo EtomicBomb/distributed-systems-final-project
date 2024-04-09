@@ -25,8 +25,7 @@ global.nodeConfig = {
 };
 
 async function handleConnection(req, server) {
-  local.async.status.incrementCount();
-  // http://node_ip:node_port/service/method
+  await local.async.status.incrementCount();
   let message = [];
   req.on('data', (chunk) => message.push(chunk));
   await new Promise((resolve) => req.on('end', resolve));
@@ -49,7 +48,7 @@ async function handleConnection(req, server) {
 }
 
 function start(started) {
-  const server = http.createServer({keepAliveTimeout: 5000}, (req, res) => {
+  const server = http.createServer((req, res) => {
     handleConnection(req, server)
         .then((ev) => {
           res.writeHead(400, {'Content-Type': 'application/json'});

@@ -164,7 +164,8 @@ function MemStore(service) {
 function MapReduce() {
   this.exec = async function({keys: key1s, map, reduce, memory}) { // XXX
     const job = `${util.id.getNID(global.nodeConfig)}-${randomUUID()}`;
-    const memOrStore = memory === null ? this.memOrStore : (memory ? 'mem' : 'store');
+    const memOrStore = memory === null ?
+          this.memOrStore : (memory ? 'mem' : 'store');
     const {gid, hash} = this;
     await Promise.all(key1s.map((key1) => util.callOnHolder({
       key: key1,
@@ -229,7 +230,7 @@ function Status() {
   };
   this.spawn = async function(config) {
     const node = await distribution.local.async.status.spawn(config);
-    const [es, vs] = await distribution[this.gid].async.groups.add(this, node);
+    const [es] = await distribution[this.gid].async.groups.add(this, node);
     if (Object.keys(es).length > 0) {
       return [es, null];
     }
@@ -265,7 +266,9 @@ function defaultGIDConfig(gidConfig) {
 function serviceToCallbackService(gidConfig, service) {
   return mapValues(service, (method) => (...args) => {
     if (args.length !== method.length + 1) {
-      throw new Error(`wrong number of arguments for ${method.toString()}: found ${args.length}, expected ${method.length+1}: ${args}`);
+      throw new Error(`wrong number of arguments for 
+          ${method.toString()}: found ${args.length}, 
+          expected ${method.length+1}: ${args}`);
     }
     const callback = args.pop();
     method.call(gidConfig, ...args).then(([e, v]) => callback(e, v));
@@ -280,8 +283,10 @@ function putInDistribution(gidConfig) {
   gidConfig = defaultGIDConfig(gidConfig);
 
   global.distribution[gidConfig.gid] = {
-    ...mapValues(routes, (service) => serviceToCallbackService(gidConfig, service)),
-    async: mapValues(routes, (service) => serviceToAsyncService(gidConfig, service)),
+    ...mapValues(routes, (service) =>
+      serviceToCallbackService(gidConfig, service)),
+    async: mapValues(routes, (service) =>
+      serviceToAsyncService(gidConfig, service)),
   };
 }
 

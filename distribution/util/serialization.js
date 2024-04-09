@@ -67,7 +67,7 @@ const formats = [
       ({message: object.message, cause: object.cause, stack: object.stack}),
     de: ({message, cause, stack}, evil) => {
       const ret = new Error(message, {cause});
-        ret.stack = `${ret.stack}\n${stack.split('\n').slice(1).join('\n')}`;
+      ret.stack = stack;
       return ret;
     },
   },

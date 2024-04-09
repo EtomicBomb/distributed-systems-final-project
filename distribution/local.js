@@ -2,9 +2,9 @@ const http = require('node:http');
 const path = require('node:path');
 const {randomUUID} = require('node:crypto');
 const process = require('node:process');
-const {unlink, readdir, mkdir, writeFile, readFile} = require('node:fs/promises');
+const {unlink, readdir, mkdir, writeFile, readFile} =
+    require('node:fs/promises');
 const childProcess = require('node:child_process');
-const fs = require('node:fs');
 
 const {putInDistribution} = require('./all');
 const util = require('./util/util');
@@ -12,7 +12,7 @@ const util = require('./util/util');
 function Status() {
   this.counts = 0;
   this.server = null;
-  this.incrementCount = () => {
+  this.incrementCount = async () => {
     this.counts += 1;
   };
   this.get = async (installation) => {
@@ -60,7 +60,7 @@ function Status() {
     });
     return node;
   };
-};
+}
 
 function Groups() {
   this.gidToGroup = new Map();
@@ -113,7 +113,7 @@ function Groups() {
     this.gidToGroup.delete(gid);
     return group;
   };
-};
+}
 
 function Gossip() {
   this.received = new Set();
@@ -132,7 +132,7 @@ function Gossip() {
     }
     return v;
   };
-};
+}
 
 function Routes() {
   this.customRoutes = new Map();
@@ -149,7 +149,7 @@ function Routes() {
     }
     throw new Error(`could not identify route ${name}`);
   };
-};
+}
 
 function isError(e) {
   if (!e) {
@@ -169,7 +169,8 @@ function HandleClose() {
   this.installed = new Map();
   this.promise = () => {
     const closeToken = randomUUID();
-    const donePromise = new Promise((res) => this.installed.set(closeToken, res));
+    const donePromise = new Promise((res) =>
+      this.installed.set(closeToken, res));
     return {message: [closeToken, global.nodeConfig], donePromise};
   };
   this.handleClose = async (closeToken) => {
@@ -223,11 +224,12 @@ function RPC() {
     this.installed.push(func);
     return installation;
   };
-};
+}
 
 function MapReduceMapper() {
   this.map = async (map, job, gid, hash, key1, memOrStore) => {
-    const value1 = await distribution.local.async[memOrStore].get({gid, key: key1});
+    const value1 = await distribution.local.async[memOrStore].get(
+        {gid, key: key1});
     let results = await Promise.resolve(map(key1, value1));
     results = Array.isArray(results) ? results : [results];
     results = results.map((result) => Object.entries(result).flat());
@@ -390,7 +392,8 @@ function serviceToCallbackService(service) {
       // they did not the callback, ignore the promise
       method.call(service, ...args);
     } else {
-      throw new Error(`wrong number of arguments for ${method.toString()}: found ${args.length}, expected ${method.length} ${args}`);
+      throw new Error(`wrong number of arguments for ${method.toString()}: 
+          found ${args.length}, expected ${method.length} ${args}`);
     }
   });
 }
