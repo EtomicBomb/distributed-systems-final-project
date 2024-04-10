@@ -1,5 +1,6 @@
 global.nodeConfig = {ip: '127.0.0.1', port: 7070};
 const {createGroup} = require('../distribution/all');
+const util = require('../distribution/util/util');
 global.distribution = require('../distribution');
 
 async function runWorkflows(gid, job) {
@@ -9,18 +10,18 @@ async function runWorkflows(gid, job) {
     {ip: '127.0.0.1', port: 7112},
     {ip: '127.0.0.1', port: 7113},
   ];
-  let group = nodes.map((node) => [distribution.util.id.getSID(node), node]);
-  group = Object.fromEntries(group);
-  let gidConfig = {gid};
 
   const server = await new Promise((cb) => distribution.node.start(cb));
   for (const node of nodes) {
     await distribution.local.async.status.spawn(node);
   }
 
-  await createGroup(gidConfig, group);
+  await createGroup(
+      {gid},
+      Object.fromEntries(nodes.map((node) => [util.id.getSID(node), node])),
+  );
 
-    const result = await job();
+  const result = await job();
 
   for (const node of nodes) {
     await distribution.local.async.comm.send(
@@ -30,46 +31,28 @@ async function runWorkflows(gid, job) {
   return result;
 }
 
-
-
-//async function workflow1(urls, gidConfig) {
-//  const keys = urls.map((_, i) => `${i}`);
-//  for (let i = 0; i < urls.length; i++) {
-//    await distribution[gidConfig.gid].async.store.put(urls[i], keys[i]);
-//  }
-//  const mapper = eval(`async (dummy, url) => {
-//      let body = await distribution.util.getPageContents(url);
-//      const {gid} = ${JSON.stringify(gidConfig)};
-//      await distribution[gid].async.store.put(body, {key: 'content '+url, gid});
-//      return [];
-//  }`);
-//  const reducer = (key, values) => ({[key]: values}); // never called
-//  await distribution[gidConfig.gid].async.mr.exec(
-//      {keys, map: mapper, reduce: reducer});
-//}
-
 async function numberJob(gid) {
   const keys = new Array(100).fill(null).map((_, i) => `hello ${i}`);
   for (let i = 0; i < keys.length; i++) {
     await distribution[gid].async.store.put(i, keys[i]);
   }
-    const mapper = async (key, value) => ({[`${value % 10}`]: value});
-    const reducer = async (key, values) => ({[key]: values});
+  const mapper = async (key, value) => ({[`${value % 10}`]: value});
+  const reducer = async (key, values) => ({[key]: values});
 
   return await distribution[gid].async.mr.exec(
       {keys, map: mapper, reduce: reducer});
 }
 
 test('(0 pts) testing the distribution of keys', async () => {
-    const gid = 'number';
+  const gid = 'number';
   const [, reverseMapping] = await runWorkflows(gid, () => numberJob(gid));
-    expect(reverseMapping).toHaveLength(10);
+  expect(reverseMapping).toHaveLength(10);
   for (const entry of reverseMapping) {
     const [key, values] = Object.entries(entry).flat();
     expect(values.length).toEqual(10);
-      for (const value of values) {
-          expect(value % 10).toEqual(+key);
-      }
+    for (const value of values) {
+      expect(value % 10).toEqual(+key);
+    }
   }
 });
 
@@ -78,21 +61,21 @@ async function numberJobSum(gid) {
   for (let i = 0; i < keys.length; i++) {
     await distribution[gid].async.store.put(i, keys[i]);
   }
-    const mapper = async (key, value) => ({[`${value % 10}`]: value});
-    const reducer = async (key, values) => 
-        ({[key]: values.reduce((a, b) => a + b, 0)});
+  const mapper = async (key, value) => ({[`${value % 10}`]: value});
+  const reducer = async (key, values) =>
+    ({[key]: values.reduce((a, b) => a + b, 0)});
 
   return await distribution[gid].async.mr.exec(
       {keys, map: mapper, reduce: reducer});
 }
 
-test('(0 pts) testing the mapper works', async () => {
-    const gid = 'numberSum';
+test('(0 pts) testing the reducer works with sum', async () => {
+  const gid = 'numberSum';
   const [, reverseMapping] = await runWorkflows(gid, () => numberJobSum(gid));
-    expect(reverseMapping).toHaveLength(10);
+  expect(reverseMapping).toHaveLength(10);
   for (const entry of reverseMapping) {
-    const [key, value] = Object.entries(entry).flat();
-        expect(value).toBeGreaterThanOrEqual(10);
+    const [, value] = Object.entries(entry).flat();
+    expect(value).toBeGreaterThanOrEqual(10);
   }
 });
 
@@ -154,13 +137,13 @@ test('(0 pts) testing the three workflows', async () => {
     //    'https://en.wikipedia.org/wiki/Solar_wind',
   ];
 
-    const gid = 'crawl';
+  const gid = 'crawl';
 
-    const job = async () => {
-      await workflow1(urls, gid);
-      await workflow2(urls, gid);
-      return await workflow3(urls, gid);
-    };
+  const job = async () => {
+    await workflow1(urls, gid);
+    await workflow2(urls, gid);
+    return await workflow3(urls, gid);
+  };
 
   const [, reverseMapping] = await runWorkflows(gid, job);
   expect(reverseMapping.length).toBeGreaterThanOrEqual(1500);
