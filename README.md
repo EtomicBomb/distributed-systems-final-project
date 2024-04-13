@@ -1,44 +1,139 @@
-# M2: Actors and Remote Procedure Calls (RPC)
-> Full name: Ethan Williams
-> Email:  ethan_williams@brown.edu
-> Username:  ewilli51
+# Architecture
 
-## Summary
+# `mockCourses` 
 
-> Summarize your implementation, including key challenges you encountered
+These services holds the most up-to-date details about every course.
 
-I added mem.js, store.js, and memStore.js, which total about 100 lines of code. I added about 60 lines of code to id.js. I added about 60 lines to local.js for support.
+This is intended to emulate a database connection. Alternatively this can be viewed as mocking the C@B api, to prevent us from overwhelming it. It does not know about any indexing or anything.
 
-The first key challenge was getting M3 to pass on the autograder. This was solved after a TA told me about the issue and got my code to work with the fact that gradescope strips the executable bit from files.
+There should only be one `mockCourses` node.
 
-The next challenge was getting my hashing code to match with gradescope test. It was poorly specified in the handout, so I had to play around with the order of concatenation, hashing, and calling toString on the provided list.
+## `mockCourses/list[]`
 
-Another challenge was dealing with the fact that there would be a lot of code duplication. I solved this by merging the global mem and store routines into memStore, and having mem.js and store.js be small wrappers that calls them.
+lists the codes of all of the known courses
 
-## Correctness & Performance Characterization
+## `mockCourses/detail[{subject, number}]`
 
-> Describe how you characterized the correctness and performance of your implementation
+provides details about a single course. This is the corresponding value in `courses.json`.
 
-I wrote tests that tested some of the parameters of the mem and local storage that were not covered by the handout. For example, the handout did not poke at keys that had weird characters that are hard to put in the file system. I included tests for this case and others.
+# `mockStudents`
 
-*Correctness*: I wrote 5 tests; these tests take 0.834s to execute.
+Holds the most up-to-date detail about every student from `students.json`.
 
-*Performance*: Storing and retrieving 1000 5-property objects using a 3-node setup results in following average throughput and latency characteristics: `<avg. throughput>`obj/sec and `<avg. latency>` (ms/object) (Note: these objects were pre-generated in memory to avoid accounting for any performance overheads of generating these objects between experiments).
+There should only be one `mockStudents` node
 
-I could only spawn 400 objects due to stack size limits. It took 0m0.218s. This is 1835 objects per second, or 0.545 ms per frame.
+## `mockStudents/list[]`
 
-## Key Feature
+lists the codes of all of the students studentTokens.
 
-> Why is the `reconf` method designed to first identify all the keys to be relocated and then relocate individual objects instead of fetching all the objects immediately and then pushing them to their corresponding locations?
+## `mockStudents/detail[studentToken]`
 
-We want to save work by not relocating objects that do not need to be moved. There is a high likelyhood that many objects may not need to be relocated. If we had to fetch the object values, we would be reading objects that did not need to move. These objects may be large, and so relocating them would have significant network and CPU cost.
+provides details about a single student. 
 
-## Time to Complete
+# `client` 
 
-> Roughly, how many hours did this milestone take you to complete?
+This is what the users of the web interface talk to. Orchestrates requests.
 
-I am not sure how long this took to complete. I worked on it a few hours here
-and there since over the past two weeks. I had an unusual work schedule since I
-was still trying to get the m3 tests to pass while I was working on m4.
+There may be many client nodes to distribute load.
 
-Hours: 8
+Requests made to these services should not be trusted.
+
+## `client/search[subject, number, title, description, instructor]` 
+
+Call with null if you're not interested in the result
+
+## `client/listRegister[studentToken]`
+
+Lists all the courses the student has taken.
+
+## `client/addRegister[{subject, number}, studentToken]`
+
+Attempts to register a student to a course. Can fail.
+
+# `students`
+
+Stores which courses each student is registered for. Also stores the students qualifications, which courses the student has taken in the past.
+
+## `students/lock[{subject, number}, studentToken] -> studentsLock`
+
+Grabs a lock on registering a student for this course. May fail.
+
+## `students/submit[studentsLock, studentToken]`
+
+Submits the registration. Never fails.
+
+## `students/listRegister[studentToken]`
+
+Lists all courses that the student is currently registered for
+
+# `courses`
+
+## `courses/lock[studentRecord] -> coursesLock`
+
+Attempts to lock this student registration. May fail.
+
+## `courses/submit[coursesLock, studentToken]`
+
+Submits the registration. Never fails.
+
+## `courses/search[subject, number, title, description, instructor]`
+
+Searches for the course using the node's internal indexes
+
+## `courses/listRegister[]`
+
+Lists all students that are registerd for this course
+
+# Operation
+
+The student nodes make requests to the mock students endpoint to gather all of the data. They save the course data that hashes to them locally, and store the results in their local store. *query* *index* subphases
+
+The courses nodes make requests to the mock courses endpoints to gather their course data. They build up their indexing structure in the local store. *query* *index* subphases
+
+Once this setup phase is complete, each node sends all other nodes a "ready" message.
+
+The client waits for all the ready messages before it processes any requests
+
+When a user tells the client node that they want to register for a course, the client attempts to get a lock on the `courses` and get a lock with the `students` endpoint. Then, if and only if it obtains both, it will make `submit` requests to the courses and students endpoint, and reports back whether the request successful 
+
+When a user tells the client node to search, the client sends the search request to all of the `courses` nodes. The client then aggregates the responses.
+
+The results of the registration go in persistent storage.
+
+# Assumptions / Invariants
+
+We are imagining a setting where all of the course data and student data are frozen, and students are searching for and registering for courses. Several unrealistic simplifying assumptions are made. These should be assumed, checked, and verified as makes sense.
+
+Students may register for a course if and only if they are qualified for it.
+
+The qualifications are the prerequisite qualifications and semester level qualifications (and no others).
+
+The courses do not have an enrollment limit.
+
+Students may not register for more than 5 courses.
+
+If a student manages to register for a course, they do not become deregistered.
+
+A student's qualifications do not change.
+
+A course's prerequisites do not change.
+
+The nodes do not go down.
+
+The nodes have knowldege of all of the other nodes IPs at startup.
+
+There is no separate student secret; students are identiifed by their studentToken
+
+Once a student registers for a course, that course will appear in their listing, and the student will appear in the course's listing.
+
+All courses are offered this term (only), and there is exactly one section for each.
+
+```
+jq -s '[. | .[] | {(.code.subject + " " +  .code.number): .}] | sort | add' minimized.jsonl > courses.json
+```
+
+```
+jq -s '[. | .[] | {(.code.subject + " " +  .code.number): ({subject: .code.subject, number: .code.number} + (. | del(.code)) )}] | sort | add' minimized.jsonl
+```
+
+`https://github.com/aruljohn/popular-baby-names/blob/master/2000/girl_boy_names_2000.csv`
