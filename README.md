@@ -24,7 +24,7 @@ There should only be one `mockStudents` node
 
 ## `mockStudents/list[]`
 
-lists the codes of all of the students studentTokens.
+lists the codes of all of the students `studentTokens`.
 
 ## `mockStudents/detail[studentToken]`
 
@@ -32,13 +32,13 @@ provides details about a single student.
 
 # `client` 
 
-This is what the users of the web interface talk to. Orchestrates requests.
+This is what the users of the web interface talk to. Orchestrates requests on the behalf of clients.
 
 There may be many client nodes to distribute load.
 
-Requests made to these services should not be trusted.
+Requests made to these services should not be trusted, since these services will be exposed to the internet.
 
-## `client/search[subject, number, title, description, instructor]` 
+## `client/search[{subject, number, title, description, instructor}]` 
 
 Set a parameter to null if you're not making any specific search in that category
 
@@ -54,9 +54,13 @@ Attempts to register a student to a course. Can fail.
 
 Stores which courses each student is registered for. Also stores the students qualifications, which courses the student has taken in the past.
 
-## `students/lock[subject, number, studentToken] -> studentsLock`
+## `students/lock[studentToken] -> studentsLock`
 
-Grabs a lock on registering a student for this course. May fail.
+Grabs a lock on registering a student for this course. May fail if they have already registered for 5 courses.
+
+## `students/unlock[studentToken]`
+
+Removes the lock, probably since the course endpoint cancelled. Cannot cancel if you already registered.
 
 ## `students/submit[studentsLock, studentToken]`
 
@@ -68,15 +72,19 @@ Lists all courses that the student is currently registered for
 
 # `courses`
 
-## `courses/lock[studentRecord] -> coursesLock`
+## `courses/lock[studentRecord, studentToken] -> coursesLock`
 
-Attempts to lock this student registration. May fail.
+Attempts to lock this student registration. May fail if the student does not qualify for the course.
 
 ## `courses/submit[coursesLock, studentToken]`
 
 Submits the registration. Never fails if you submit the right token.
 
-## `courses/search[subject, number, title, description, instructor]`
+## `courses/unlock[studentToken]`
+
+Removes the registration lock, because one of the checks failed.
+
+## `courses/search[{subject, number, title, description, instructor}]`
 
 Searches for the course using the node's internal indexes
 
