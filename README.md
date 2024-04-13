@@ -1,32 +1,36 @@
 # Architecture
 
-# `mockCourses` 
+# `authoritativeCourses` 
 
-These services holds the most up-to-date details about every course, as found it `courses.json`.
+Only used for the `query/index` phase.
 
-This is intended to emulate a database connection. Alternatively this can be viewed as mocking the C@B api, to prevent us from overwhelming it. It does not know about any indexing or anything.
+These services holds authoritative info about every course, as found it `courses.json`.
 
-There should only be one `mockCourses` node.
+This is intended to emulate a database connection. Alternatively this can be viewed as authoritativeing the C@B api, to prevent us from overwhelming it. It does not do any indexing or anything.
 
-## `mockCourses/list[]`
+There should only be one `authoritativeCourses` node.
+
+## `authoritativeCourses/list[]`
 
 lists the codes of all of the known courses
 
-## `mockCourses/detail[subject, number]`
+## `authoritativeCourses/detail[subject, number]`
 
 provides details about a single course. This is the corresponding value in `courses.json`.
 
-# `mockStudents`
+# `authoritativeStudents`
 
-Holds the most up-to-date detail about every student from `students.json`.
+Only used for the `query/index` phase.
 
-There should only be one `mockStudents` node
+Holds the authoritative data about every student from `students.json`.
 
-## `mockStudents/list[]`
+There should only be one `authoritativeStudents` node
+
+## `authoritativeStudents/list[]`
 
 lists the codes of all of the students `studentTokens`.
 
-## `mockStudents/detail[studentToken]`
+## `authoritativeStudents/detail[studentToken]`
 
 provides details about a single student. 
 
@@ -98,9 +102,9 @@ Lists all students that are registerd for this course
 
 # Operation
 
-The `students` nodes make requests to the `mockStudents` node to gather all of the data. They save the student info in their local store. Each node is only responsible for the students that consistent hash to them. 
+The `students` nodes make requests to the `authoritativeStudents` node to gather all of the data. They save the student info in their local store. Each node is only responsible for the students that consistent hash to them. 
 
-The `courses` nodes make requests to the `mockClients` node to gather all of the data. They save the course info in their local store. They then do indexing so that searches are fast. Each node is only responsible for the courses that consistent hash to them. 
+The `courses` nodes make requests to the `authoritativeClients` node to gather all of the data. They save the course info in their local store. They then do indexing so that searches are fast. Each node is only responsible for the courses that consistent hash to them. 
 
 Once this setup phase is complete, each node sends all other nodes a "ready" message.
 
@@ -140,6 +144,13 @@ Once a student registers for a course, that course will appear in their listing,
 
 All courses are offered this term (only), and there is exactly one section for each.
 
+# Ways to extend
+
+We could imagine syncing with the authoritative nodes at the end of the registration process
+
+We could imagine keeping the change hashes for each course and student around. We could periodically sync up with the authoritative databases
+
+# Scratch 
 ```
 jq -s '[. | .[] | {(.code.subject + " " +  .code.number): .}] | sort | add' minimized.jsonl > courses.json
 ```
