@@ -2,7 +2,7 @@
 
 # `mockCourses` 
 
-These services holds the most up-to-date details about every course.
+These services holds the most up-to-date details about every course, as found it `courses.json`.
 
 This is intended to emulate a database connection. Alternatively this can be viewed as mocking the C@B api, to prevent us from overwhelming it. It does not know about any indexing or anything.
 
@@ -12,7 +12,7 @@ There should only be one `mockCourses` node.
 
 lists the codes of all of the known courses
 
-## `mockCourses/detail[{subject, number}]`
+## `mockCourses/detail[subject, number]`
 
 provides details about a single course. This is the corresponding value in `courses.json`.
 
@@ -40,13 +40,13 @@ Requests made to these services should not be trusted.
 
 ## `client/search[subject, number, title, description, instructor]` 
 
-Call with null if you're not interested in the result
+Set a parameter to null if you're not making any specific search in that category
 
 ## `client/listRegister[studentToken]`
 
-Lists all the courses the student has taken.
+Lists all the courses the student is registered for this term
 
-## `client/addRegister[{subject, number}, studentToken]`
+## `client/addRegister[subject, number, studentToken]`
 
 Attempts to register a student to a course. Can fail.
 
@@ -54,13 +54,13 @@ Attempts to register a student to a course. Can fail.
 
 Stores which courses each student is registered for. Also stores the students qualifications, which courses the student has taken in the past.
 
-## `students/lock[{subject, number}, studentToken] -> studentsLock`
+## `students/lock[subject, number, studentToken] -> studentsLock`
 
 Grabs a lock on registering a student for this course. May fail.
 
 ## `students/submit[studentsLock, studentToken]`
 
-Submits the registration. Never fails.
+Submits the registration. Never fails if you submit the right token.
 
 ## `students/listRegister[studentToken]`
 
@@ -74,7 +74,7 @@ Attempts to lock this student registration. May fail.
 
 ## `courses/submit[coursesLock, studentToken]`
 
-Submits the registration. Never fails.
+Submits the registration. Never fails if you submit the right token.
 
 ## `courses/search[subject, number, title, description, instructor]`
 
@@ -86,9 +86,9 @@ Lists all students that are registerd for this course
 
 # Operation
 
-The student nodes make requests to the mock students endpoint to gather all of the data. They save the course data that hashes to them locally, and store the results in their local store. *query* *index* subphases
+The `students` nodes make requests to the `mockStudents` node to gather all of the data. They save the student info in their local store. Each node is only responsible for the students that consistent hash to them. 
 
-The courses nodes make requests to the mock courses endpoints to gather their course data. They build up their indexing structure in the local store. *query* *index* subphases
+The `courses` nodes make requests to the `mockClients` node to gather all of the data. They save the course info in their local store. They then do indexing so that searches are fast. Each node is only responsible for the courses that consistent hash to them. 
 
 Once this setup phase is complete, each node sends all other nodes a "ready" message.
 
