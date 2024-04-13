@@ -38,6 +38,10 @@ There may be many client nodes to distribute load.
 
 Requests made to these services should not be trusted, since these services will be exposed to the internet.
 
+## `client/ready[node, nodeSecret]`
+
+How the `students` and `courses` nodes tell the `client`s that they are ready to start processing requests. If this is not exposed to the internet we don't need to have any `nodeSecret`
+
 ## `client/search[{subject, number, title, description, instructor}]` 
 
 Set a parameter to null if you're not making any specific search in that category
@@ -88,7 +92,7 @@ Removes the registration lock, because one of the checks failed.
 
 Searches for the course using the node's internal indexes
 
-## `courses/listRegister[]`
+## `courses/listRegister[subject, number]`
 
 Lists all students that are registerd for this course
 
@@ -112,6 +116,10 @@ The results of the registration go in persistent storage.
 
 We are imagining a setting where all of the course data and student data are frozen, and students are searching for and registering for courses. Several unrealistic simplifying assumptions are made. These should be assumed, checked, and verified as makes sense.
 
+A student's qualifications do not change during the runtime.
+
+A course's prerequisites do not change during the runtime.
+
 Students may register for a course if and only if they are qualified for it.
 
 The qualifications are the prerequisite qualifications and semester level qualifications (and no others).
@@ -121,10 +129,6 @@ The courses do not have an enrollment limit.
 Students may not register for more than 5 courses.
 
 If a student manages to register for a course, they do not become deregistered.
-
-A student's qualifications do not change.
-
-A course's prerequisites do not change.
 
 The nodes do not go down.
 
