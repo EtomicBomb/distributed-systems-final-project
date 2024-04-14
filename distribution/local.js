@@ -404,11 +404,28 @@ function AuthoritativeStudents() {
   };
 }
 
+async function esvs(promise) {
+  const [es, vs] = await promise;
+  if (Object.keys(es).length > 0) {
+    throw new Error('some nodes responded with an error', {cause: es});
+  }
+  return vs;
+}
+
 function Client() {
   this.ready = async (node, secret) => {
     // TODO: figure out how we're going to do this functionality
   };
-  this.search = async ({code, title, description, instructor}) => {
+  this.search = async (query) => {
+      const results = await esvs(util.sendToAll({
+          message: [query], 
+          service: 'courses', 
+          method: 'search', 
+          gid: 'courses', 
+          exclude: null, 
+          subset: null,
+      }));
+      return Object.values(results).flat();
   };
   this.studentsTaking = async (token) => {
     return await util.callOnHolder({
@@ -485,14 +502,6 @@ function Client() {
       throw new Error('registration failed', {cause: [studentsLock.reason, coursesLock.reason]});
     }
   };
-}
-
-async function esvs(promise) {
-  const [es, vs] = await promise;
-  if (Object.keys(es).length > 0) {
-    throw new Error('some nodes responded with an error', {cause: es});
-  }
-  return vs;
 }
 
 function Students() {
@@ -597,12 +606,12 @@ function Courses() {
     return map.size;
   };
   this.search = async ({code, title, description, instructor}) => {
+      throw new Error('TODO: not implemented');
   };
   this.listRegister = async (code) => {
     return [...registered.get(code)];
   };
   this.lock = async (code, record, token) => {
-    // XXX student is qualified
     const courseRecord = map.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
       throw new Error('you are not qualiafied to take this course');
