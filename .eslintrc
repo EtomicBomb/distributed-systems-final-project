@@ -9,6 +9,7 @@
         "sourceType": "script" // Set to "module" if you are using ES6 modules
     },
     "rules": {
+        "max-len": ["error", {"code": 100}],
         "no-var": "off", // Allow 'var' for ES5 compatibility
         "prefer-const": "off", // Do not enforce const over let
         "prefer-spread": "off", // Do not enforce spread operator

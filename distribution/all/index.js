@@ -297,6 +297,7 @@ function groupsTemplate(gidConfig) {
 
 async function createGroup(gidConfig, group) {
   gidConfig = defaultGIDConfig(gidConfig);
+  group = Object.fromEntries(group.map((node) => [util.id.getSID(node), node]));
   return await routes.groups.put.call(gidConfig, gidConfig, group);
 }
 

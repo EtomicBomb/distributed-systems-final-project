@@ -8,6 +8,20 @@ function getActualKey(key, value) {
   return key === null ? id.getID(value) : key;
 }
 
+async function whichHashTo(keys, gid, hash) {
+  let nodes = await distribution.local.async.groups.get(gid);
+  const nids = Object.values(nodes).map((node) => id.getNID(node));
+  const result = keys.map((key) => {
+    const nid = hash(id.getID(key), nids);
+    return {nid, key};
+  });
+  const ret = new Map(nids.map((node) => [node, []]));
+  for (const {nid, key} of result) {
+    ret.get(nid).push(key);
+  }
+  return ret;
+}
+
 async function callOnHolder(
     {key, value, gid, hash, message, service, method},
 ) {
@@ -125,6 +139,7 @@ module.exports = {
   deserialize: serialization.deserialize,
   sendToAll,
   getActualKey,
+  whichHashTo,
   callOnHolder,
   getPageContents,
   getUrls,

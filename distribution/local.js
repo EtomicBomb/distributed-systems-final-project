@@ -362,6 +362,280 @@ function Store() {
   };
 }
 
+function AuthoritativeCourses() {
+  let map;
+  const setup = async () => {
+    if (map !== undefined) {
+      return;
+    }
+    let ret = path.join(__dirname, '../data/courses.json');
+    ret = await readFile(ret);
+    ret = JSON.parse(ret);
+    map = new Map(Object.entries(ret));
+  };
+  this.list = async () => {
+    await setup();
+    return [...map.keys()];
+  };
+  this.details = async (codes) => {
+    await setup();
+    return codes.map((code) => [code, map.get(code)]);
+  };
+}
+
+function AuthoritativeStudents() {
+  let map;
+  const setup = async () => {
+    if (map !== undefined) {
+      return;
+    }
+    let ret = path.join(__dirname, '../data/students.json');
+    ret = await readFile(ret);
+    ret = JSON.parse(ret);
+    map = new Map(Object.entries(ret));
+  };
+  this.list = async () => {
+    await setup();
+    return [...map.keys()];
+  };
+  this.details = async (tokens) => {
+    await setup();
+    return tokens.map((token) => [token, map.get(token)]);
+  };
+}
+
+function Client() {
+  this.ready = async (node, secret) => {
+    // TODO: figure out how we're going to do this functionality
+  };
+  this.search = async ({code, title, description, instructor}) => {
+  };
+  this.studentsTaking = async (token) => {
+    return await util.callOnHolder({
+      key: token,
+      value: null,
+      gid: 'students',
+      hash: util.id.consistentHash,
+      message: [token],
+      service: 'students',
+      method: 'listRegister',
+    });
+  };
+  this.coursesTaking = async (code) => {
+    return await util.callOnHolder({
+      key: code,
+      value: null,
+      gid: 'courses',
+      hash: util.id.consistentHash,
+      message: [code],
+      service: 'courses',
+      method: 'listRegister',
+    });
+  };
+  this.register = async (code, token) => {
+    const record = await util.callOnHolder({
+      key: token,
+      value: null,
+      gid: 'students',
+      hash: util.id.consistentHash,
+      message: [token],
+      service: 'students',
+      method: 'getRecord',
+    });
+    let studentsLock = util.callOnHolder({
+      key: token,
+      value: null,
+      gid: 'students',
+      hash: util.id.consistentHash,
+      message: [code, token],
+      service: 'students',
+      method: 'lock',
+    });
+    let coursesLock = util.callOnHolder({
+      key: code,
+      value: null,
+      gid: 'courses',
+      hash: util.id.consistentHash,
+      message: [code, record, token],
+      service: 'courses',
+      method: 'lock',
+    });
+    [studentsLock, coursesLock] = await Promise.allSettled([studentsLock, coursesLock]);
+    const success = studentsLock.status === 'fulfilled' && coursesLock.status === 'fulfilled';
+    const studentsSubmit = util.callOnHolder({
+      key: token,
+      value: null,
+      gid: 'students',
+      hash: util.id.consistentHash,
+      message: [code, studentsLock.value, token],
+      service: 'students',
+      method: success ? 'submit' : 'unlock',
+    });
+    const coursesSubmit = util.callOnHolder({
+      key: code,
+      value: null,
+      gid: 'courses',
+      hash: util.id.consistentHash,
+      message: [code, coursesLock.value, token],
+      service: 'courses',
+      method: success ? 'submit' : 'unlock',
+    });
+    await Promise.all([studentsSubmit, coursesSubmit]);
+    if (!success) {
+      throw new Error('registration failed', {cause: [studentsLock.reason, coursesLock.reason]});
+    }
+  };
+}
+
+async function esvs(promise) {
+  const [es, vs] = await promise;
+  if (Object.keys(es).length > 0) {
+    throw new Error('some nodes responded with an error', {cause: es});
+  }
+  return vs;
+}
+
+function Students() {
+  let map;
+  let locks;
+  let registered;
+  this.beginIndex = async () => {
+    const auth = 'authoritativeStudents';
+    const remote = {service: auth, method: 'list'};
+    let res = await esvs(distribution[auth].async.comm.send([], remote));
+    res = Object.values(res)[0];
+    res = await util.whichHashTo(res, 'students', util.id.consistentHash);
+    const tokens = res.get(util.id.getNID(global.nodeConfig));
+
+    const details = {service: auth, method: 'details'};
+    res = await esvs(distribution[auth].async.comm.send([tokens], details));
+    map = new Map(Object.values(res)[0]);
+
+    locks = new Map(tokens.map((token) => [token, {locks: new Set(), codes: new Set()}]));
+    registered = new Map(tokens.map((token) => [token, new Set()]));
+    return map.size;
+  };
+  this.getRecord = async (token) => {
+    return map.get(token);
+  };
+  this.listTokens = async () => {
+    return [...map.keys()];
+  };
+  this.listRegister = async (token) => {
+    console.trace(registered.get(token), token);
+    return [...registered.get(token)];
+  };
+  this.lock = async (code, token) => {
+    const alreadyRegistered = locks.get(token).codes.size + registered.get(token).size;
+    if (alreadyRegistered >= 5) {
+      throw new Error(`student has already locked ${alreadyRegistered} courses`);
+    }
+    if (registered.get(token).has(code)) {
+      throw new Error('student is already registered for this course');
+    }
+    if (locks.get(token).codes.has(code)) {
+      throw new Error('student is already locked for this course');
+    }
+    const lock = `stud_lock_${randomUUID()}`;
+    locks.get(token).locks.add(lock);
+    locks.get(token).codes.add(code);
+    return lock;
+  };
+  this.unlock = async (code, lock, token) => {
+    locks.get(token).locks.delete(lock);
+    locks.get(token).codes.delete(code);
+  };
+  this.submit = async (code, lock, token) => {
+    if (!locks.get(token).locks.has(lock)) {
+      throw new Error('we do not have a lock for this course');
+    }
+    locks.get(token).locks.delete(lock);
+    locks.get(token).codes.delete(code);
+
+    registered.get(token).add(code);
+  };
+}
+
+function prerequisiteQualifications(taken, prerequisites) {
+  if (prerequisites === null) {
+    return true;
+  }
+  const [tag, value] = Object.entries(prerequisites).flat();
+  if (tag === 'any') {
+    return value.some((qual) => prerequisiteQualifications(taken, qual));
+  }
+  if (tag === 'all') {
+    return value.every((qual) => prerequisiteQualifications(taken, qual));
+  }
+  if (tag === 'exam') {
+    return false;
+  }
+  if (tag === 'course') {
+    const {subject, number} = value;
+    return taken.includes(`${subject} ${number}`);
+  }
+  throw new Error(`unknown prerequisite ${tag}`);
+}
+
+function Courses() {
+  let map;
+  let registered;
+  let locks;
+  this.beginIndex = async () => {
+    const auth = 'authoritativeCourses';
+    const remote = {service: auth, method: 'list'};
+    let res = await esvs(distribution[auth].async.comm.send([], remote));
+    res = Object.values(res)[0];
+    res = await util.whichHashTo(res, 'courses', util.id.consistentHash);
+    const ours = res.get(util.id.getNID(global.nodeConfig));
+    const details = {service: auth, method: 'details'};
+    res = await esvs(distribution[auth].async.comm.send([ours], details));
+    map = new Map(Object.values(res)[0]);
+    locks = new Map(ours.map((code) => [code, {locks: new Set(), tokens: new Set()}]));
+    registered = new Map(ours.map((code) => [code, new Set()]));
+    // TODO: indexing for search
+    return map.size;
+  };
+  this.search = async ({code, title, description, instructor}) => {
+  };
+  this.listRegister = async (code) => {
+    return [...registered.get(code)];
+  };
+  this.lock = async (code, record, token) => {
+    // XXX student is qualified
+    const courseRecord = map.get(code);
+    if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
+      throw new Error('you are not qualiafied to take this course');
+    }
+    if (!courseRecord.semester_range.includes(record.semester)) {
+      throw new Error('you are not in the right semester to take this course');
+    }
+    if (registered.get(code).has(token)) {
+      throw new Error('student is already registered for this course');
+    }
+    if (locks.get(code).tokens.has(token)) {
+      throw new Error('student is already locked for this course');
+    }
+    const lock = `course_lock_${randomUUID()}`;
+    locks.get(code).locks.add(lock);
+    locks.get(code).tokens.add(token);
+    return lock;
+  };
+  this.unlock = async (code, lock, token) => {
+    locks.get(code).locks.delete(lock);
+    locks.get(code).tokens.delete(token);
+  };
+  this.submit = async (code, lock, token) => {
+    if (!locks.get(code).locks.has(lock)) {
+      throw new Error('we do not have a lock for this course');
+    }
+    locks.get(code).locks.delete(lock);
+    locks.get(code).tokens.delete(token);
+
+    registered.get(code).add(token);
+  };
+}
+
 const routes = {
   status: new Status(),
   groups: new Groups(),
@@ -374,6 +648,12 @@ const routes = {
   mapReduceMapper: new MapReduceMapper(),
   mapReduceReducer: new MapReduceReducer(),
   handleClose: new HandleClose(),
+
+  authoritativeCourses: new AuthoritativeCourses(),
+  authoritativeStudents: new AuthoritativeStudents(),
+  client: new Client(),
+  students: new Students(),
+  courses: new Courses(),
 };
 
 function mapValues(x, func) {

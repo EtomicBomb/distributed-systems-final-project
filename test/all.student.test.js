@@ -1,6 +1,5 @@
 global.nodeConfig = {ip: '127.0.0.1', port: 7070};
 const {createGroup} = require('../distribution/all');
-const util = require('../distribution/util/util');
 global.distribution = require('../distribution');
 
 async function runWorkflows(gid, job) {
@@ -16,10 +15,7 @@ async function runWorkflows(gid, job) {
     await distribution.local.async.status.spawn(node);
   }
 
-  await createGroup(
-      {gid},
-      Object.fromEntries(nodes.map((node) => [util.id.getSID(node), node])),
-  );
+  await createGroup({gid}, nodes);
 
   const result = await job();
 
