@@ -2,7 +2,7 @@
 
 # `authoritativeCourses` 
 
-Only used for the `query/index` phase.
+Only used for the query and index phase.
 
 These services holds authoritative info about every course, as found it `courses.json`.
 
@@ -20,7 +20,7 @@ provides details about a single course. This is the corresponding value in `cour
 
 # `authoritativeStudents`
 
-Only used for the `query/index` phase.
+Only used for the query and index phase.
 
 Holds the authoritative data about every student from `students.json`.
 
@@ -48,7 +48,7 @@ How the `students` and `courses` nodes tell the `client`s that they are ready to
 
 ## `client/search[{subject, number, title, description, instructor}]` 
 
-Set a parameter to null if you're not making any specific search in that category
+Set a parameter to null if you're not making any specific search in that category. This can be implemented with mapreduce or something similar
 
 ## `client/listRegister[studentToken]`
 
@@ -146,9 +146,11 @@ All courses are offered this term (only), and there is exactly one section for e
 
 # Ways to extend
 
-We could imagine syncing with the authoritative nodes at the end of the registration process
+We could imagine syncing with the authoritative nodes at the end (or periodically during) the registration process
 
-We could imagine keeping the change hashes for each course and student around. We could periodically sync up with the authoritative databases
+Our assumption that no nodes go down is a bad one. We can make the authoritative services be on one node, and make it serve as a "fallback.": automatically detect if any node goes down and route all requests to this one. It should be slower but if something goes wrong during registration, at least we still have some (slow) functionality.
+
+We could imagine keeping the change hashes for each course and student around. We could periodically sync up with the authoritative databases to see if students or courses have new info.
 
 # Scratch 
 ```
