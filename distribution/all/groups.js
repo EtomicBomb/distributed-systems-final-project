@@ -1,3 +1,3 @@
-const {groupsTemplate} = require('./index');
+const { groupsTemplate } = require("./index");
 
 module.exports = groupsTemplate;

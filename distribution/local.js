@@ -133,7 +133,7 @@ function Gossip() {
     distribution[gid].async.gossip.sendMID(mid, message, { service, method });
     service = await distribution.local.async.routes.get(service);
     const [e, v] = await new Promise((resolve) =>
-      service[method].call(service, ...message, resolve)
+      service[method].call(service, ...message, resolve),
     );
     if (isError(e)) {
       throw e;
@@ -178,7 +178,7 @@ function HandleClose() {
   this.promise = () => {
     const closeToken = randomUUID();
     const donePromise = new Promise((res) =>
-      this.installed.set(closeToken, res)
+      this.installed.set(closeToken, res),
     );
     return { message: [closeToken, global.nodeConfig], donePromise };
   };
@@ -255,8 +255,8 @@ function MapReduceMapper() {
           message: [job, key2, value2, memOrStore],
           service: "mapReduceReducer",
           method: "shuffle",
-        })
-      )
+        }),
+      ),
     );
   };
 }
@@ -277,8 +277,8 @@ function MapReduceReducer() {
     const key2ToValue2s = this.jobToKey2ToValue2s.get(job) || [];
     return await Promise.all(
       [...key2ToValue2s].map(([key2, value2s]) =>
-        Promise.resolve(reduce(key2, value2s))
-      )
+        Promise.resolve(reduce(key2, value2s)),
+      ),
     );
   };
 }
@@ -335,7 +335,7 @@ function Store() {
       __dirname,
       "../store/store",
       util.id.getNID(global.nodeConfig),
-      gid
+      gid,
     );
   const getAll = async (gid) => {
     let paths;
@@ -426,7 +426,7 @@ function AuthoritativeStudents() {
 async function esvs(promise) {
   const [es, vs] = await promise;
   if (Object.keys(es).length > 0) {
-    throw new Error('some nodes responded with an error', {cause: es});
+    throw new Error("some nodes responded with an error", { cause: es });
   }
   return vs;
 }
@@ -527,14 +527,6 @@ function Client() {
   };
 }
 
-async function esvs(promise) {
-  const [es, vs] = await promise;
-  if (Object.keys(es).length > 0) {
-    throw new Error("some nodes responded with an error", { cause: es });
-  }
-  return vs;
-}
-
 function Students() {
   let map;
   let locks;
@@ -552,7 +544,7 @@ function Students() {
     map = new Map(Object.values(res)[0]);
 
     locks = new Map(
-      tokens.map((token) => [token, { locks: new Set(), codes: new Set() }])
+      tokens.map((token) => [token, { locks: new Set(), codes: new Set() }]),
     );
     registered = new Map(tokens.map((token) => [token, new Set()]));
     return map.size;
@@ -572,7 +564,7 @@ function Students() {
       locks.get(token).codes.size + registered.get(token).size;
     if (alreadyRegistered >= 5) {
       throw new Error(
-        `student has already locked ${alreadyRegistered} courses`
+        `student has already locked ${alreadyRegistered} courses`,
       );
     }
     if (registered.get(token).has(code)) {
@@ -645,7 +637,7 @@ function Courses() {
     res = await esvs(distribution[auth].async.comm.send([ours], details));
     map = new Map(Object.values(res)[0]);
     locks = new Map(
-      ours.map((code) => [code, { locks: new Set(), tokens: new Set() }])
+      ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),
     );
     registered = new Map(ours.map((code) => [code, new Set()]));
     // TODO: indexing for search
@@ -714,8 +706,8 @@ function Courses() {
         (course.offerings &&
           course.offerings.some((offering) =>
             offering.instructors.some((instructors) =>
-              instructors.toLowerCase().includes(instructor)
-            )
+              instructors.toLowerCase().includes(instructor),
+            ),
           ))
       );
     });

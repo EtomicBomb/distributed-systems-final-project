@@ -35,7 +35,7 @@ async function beginIndex(gidNodes, service) {
   await Promise.all(
     gidNodes.get(service).map((node) => {
       return local.comm.send([], { service, method: "beginIndex", node });
-    })
+    }),
   );
 }
 
@@ -61,14 +61,14 @@ async function setup(gidCounts, job) {
   const server = await new Promise((cb) => distribution.node.start(cb));
   await Promise.all(nodes.map((node) => local.status.spawn(node)));
   await Promise.all(
-    [...gidNodes.entries()].map(([gid, nodes]) => createGroup({ gid }, nodes))
+    [...gidNodes.entries()].map(([gid, nodes]) => createGroup({ gid }, nodes)),
   );
   await beginIndex(gidNodes, "students");
   await beginIndex(gidNodes, "courses");
   const result = await job(Object.fromEntries([...gidNodes.entries()]));
   const stop = { service: "status", method: "stop" };
   await Promise.all(
-    nodes.map((node) => local.comm.send([], { ...stop, node }))
+    nodes.map((node) => local.comm.send([], { ...stop, node })),
   );
   await new Promise((res) => server.close(res));
   return result;
@@ -91,6 +91,7 @@ test(
       expect(gidNodes.client[0]).toHaveProperty("ip");
       expect(gidNodes.client[0]).toHaveProperty("port");
 
+      // list all of the student students on both `students` nodes
       let remote;
       remote = {
         service: "students",
@@ -107,8 +108,8 @@ test(
       expect(r0.length + r1.length).toBe(8000);
       expect(new Set([...r0, ...r1]).size).toBe(8000);
 
+      // lock a student when the student is not held here
       expect(async () => {
-        // student not held here
         remote = {
           service: "students",
           method: "lock",
@@ -117,6 +118,7 @@ test(
         await local.comm.send(["CSCI 1380", r0[0]], remote);
       }).rejects.toThrow();
 
+      // lock a student when they are held heer
       remote = {
         service: "students",
         method: "lock",
@@ -124,8 +126,8 @@ test(
       };
       const lock1380 = await local.comm.send(["CSCI 1380", r0[0]], remote);
 
+      // attempt to get a lock on the same student twice
       expect(async () => {
-        // can't get the same lock twice
         remote = {
           service: "students",
           method: "lock",
@@ -134,7 +136,7 @@ test(
         await local.comm.send(["CSCI 1380", r0[0]], remote);
       }).rejects.toThrow();
 
-      // different course
+      // get a lock on a new course before the old one expires
       remote = {
         service: "students",
         method: "lock",
@@ -158,6 +160,7 @@ test(
       };
       await local.comm.send(["CSCI 1270", lock1270, r0[0]], remote);
 
+      // see what courses the student is registered for
       let taking;
       remote = {
         service: "students",
@@ -167,8 +170,8 @@ test(
       taking = await local.comm.send([r0[0]], remote);
       expect(taking).toEqual(["CSCI 1270"]);
 
+      // try to lock a course that the student is already registered for
       expect(async () => {
-        // can't lock a course already registered for
         remote = {
           service: "students",
           method: "lock",
@@ -177,6 +180,7 @@ test(
         await local.comm.send(["CSCI 1270", r0[0]], remote);
       }).rejects.toThrow();
 
+      // end to end register for AFRI 0001
       remote = {
         service: "client",
         method: "register",
@@ -184,6 +188,7 @@ test(
       };
       await local.comm.send(["AFRI 0001", r0[0]], remote);
 
+      // check that these courses appear in the students listRegister
       remote = {
         service: "students",
         method: "listRegister",
@@ -191,11 +196,10 @@ test(
       };
       taking = await local.comm.send([r0[0]], remote);
       expect(taking).toEqual(
-        expect.arrayContaining(["CSCI 1270", "AFRI 0001"])
+        expect.arrayContaining(["CSCI 1270", "AFRI 0001"]),
       );
 
-      // TODO: add test students to synthesize
-      // TODO: test course with prerequisites
+      // test that these appear in the client list register
       remote = {
         service: "client",
         method: "coursesTaking",
@@ -204,6 +208,7 @@ test(
       taking = await local.comm.send(["AFRI 0001"], remote);
       expect(taking).toEqual(expect.arrayContaining([r0[0]]));
 
+      // check client that everything we expect is there
       remote = {
         service: "client",
         method: "studentsTaking",
@@ -212,7 +217,7 @@ test(
       taking = await local.comm.send([r0[0]], remote);
       expect(taking).toEqual(expect.arrayContaining(["AFRI 0001"]));
     }),
-  10000
+  10000,
 );
 
 // --------------------------------------------------------------------------

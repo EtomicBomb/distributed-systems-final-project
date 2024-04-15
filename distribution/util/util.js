@@ -72,8 +72,8 @@ async function sendToAll({ message, service, method, gid, exclude, subset }) {
           node,
           service,
           method,
-        })
-    )
+        }),
+    ),
   );
   for (let i = 0; i < nodes.length; i++) {
     const sid = id.getSID(nodes[i]);

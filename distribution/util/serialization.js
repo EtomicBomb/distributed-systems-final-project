@@ -3,13 +3,13 @@ function traverseNatives(object, seen, idToNative, nativeToId) {
     return;
   }
   seen.add(object);
-  if (typeof object === 'function') {
+  if (typeof object === "function") {
     const id = seen.size.toString();
     idToNative.set(id, object);
     nativeToId.set(object, id);
   }
   const props = Object.getOwnPropertyDescriptors(object);
-  for (const {value} of Object.values(props)) {
+  for (const { value } of Object.values(props)) {
     traverseNatives(value, seen, idToNative, nativeToId);
   }
 }
@@ -21,34 +21,33 @@ traverseNatives(globalThis, new Set(), idToNative, nativeToId);
 const formats = [
   {
     matches: (object) => object === undefined,
-    kind: 'undefined',
-    ser: (object) => 'undefined',
+    kind: "undefined",
+    ser: (object) => "undefined",
     de: (value, evil) => undefined,
   },
   {
     matches: (o) => {
-      return o === null ||
-            ['number', 'string', 'boolean'].includes(typeof o);
+      return o === null || ["number", "string", "boolean"].includes(typeof o);
     },
-    kind: 'leaf',
+    kind: "leaf",
     ser: (object) => object,
     de: (value, evil) => value,
   },
   {
-    matches: (object) => typeof object === 'function',
-    kind: 'function',
+    matches: (object) => typeof object === "function",
+    kind: "function",
     ser: (object) => {
       if (nativeToId.has(object)) {
-        return {scope: 'native', value: nativeToId.get(object)};
+        return { scope: "native", value: nativeToId.get(object) };
       }
-      return {scope: 'defined', value: object.toString()};
+      return { scope: "defined", value: object.toString() };
     },
-    de: ({scope, value}, evil) => {
-      if (scope === 'native') {
+    de: ({ scope, value }, evil) => {
+      if (scope === "native") {
         return idToNative.get(value);
       }
-      if (scope === 'defined') {
-        value = value.replace(/^\w+\(/, 'function(');
+      if (scope === "defined") {
+        value = value.replace(/^\w+\(/, "function(");
         value = `(${value})`;
         return evil(value);
       }
@@ -56,17 +55,20 @@ const formats = [
   },
   {
     matches: (object) => object instanceof Date,
-    kind: 'date',
+    kind: "date",
     ser: (object) => object.toISOString(),
     de: (value, evil) => new Date(value),
   },
   {
     matches: (object) => object instanceof Error,
-    kind: 'error',
-    ser: (object) =>
-      ({message: object.message, cause: object.cause, stack: object.stack}),
-    de: ({message, cause, stack}, evil) => {
-      const ret = new Error(message, {cause});
+    kind: "error",
+    ser: (object) => ({
+      message: object.message,
+      cause: object.cause,
+      stack: object.stack,
+    }),
+    de: ({ message, cause, stack }, evil) => {
+      const ret = new Error(message, { cause });
       ret.stack = stack;
       return ret;
     },
@@ -83,21 +85,22 @@ function serialize(object) {
   const objectToReference = new Map();
   const idToObject = new Map();
   const encode = (object) => {
-    for (const {matches, kind, ser} of formats) {
+    for (const { matches, kind, ser } of formats) {
       if (matches(object)) {
-        return {kind, value: ser(object)};
+        return { kind, value: ser(object) };
       }
     }
     if (objectToReference.has(object)) {
       return objectToReference.get(object);
     }
     const id = idState++;
-    const kind = object instanceof Array ? 'array' : 'object';
-    const reference = {kind: 'reference', value: id};
+    const kind = object instanceof Array ? "array" : "object";
+    const reference = { kind: "reference", value: id };
     objectToReference.set(object, reference);
-    const represented = kind === 'array' ?
-            {kind, value: object.map(encode)} :
-            {kind, value: mapObject(object, encode)};
+    const represented =
+      kind === "array"
+        ? { kind, value: object.map(encode) }
+        : { kind, value: mapObject(object, encode) };
     idToObject.set(id.toString(), represented);
     return reference;
   };
@@ -110,18 +113,18 @@ function serialize(object) {
 
 function deserialize(string, evil) {
   evil = evil || eval;
-  const {idToObject, root} = JSON.parse(string);
+  const { idToObject, root } = JSON.parse(string);
   const cannonical = new Map();
-  const decode = ({kind, value}) => {
-    for (const {kind: k, de} of formats) {
+  const decode = ({ kind, value }) => {
+    for (const { kind: k, de } of formats) {
       if (k === kind) {
         return de(value, evil);
       }
     }
-    if (kind === 'reference') {
+    if (kind === "reference") {
       if (!cannonical.has(value)) {
         const referenceKind = idToObject[value].kind;
-        const newObject = referenceKind === 'array' ? [] : {};
+        const newObject = referenceKind === "array" ? [] : {};
         // add the object to the map before we call decode
         cannonical.set(value, newObject);
         const decoding = decode(idToObject[value]);
@@ -129,10 +132,10 @@ function deserialize(string, evil) {
       }
       return cannonical.get(value);
     }
-    if (kind === 'array') {
+    if (kind === "array") {
       return value.map(decode);
     }
-    if (kind === 'object') {
+    if (kind === "object") {
       return mapObject(value, decode);
     }
   };
@@ -143,4 +146,3 @@ module.exports = {
   serialize: serialize,
   deserialize: deserialize,
 };
-

@@ -1,9 +1,9 @@
-const {ESLint} = require('eslint');
+const { ESLint } = require("eslint");
 
-test('(5 pts) eslint lint', async () => {
+test("(5 pts) eslint lint", async () => {
   let eslint = new ESLint();
-  const results = await eslint.lintFiles(['**/*.js']);
-  const formatter = await eslint.loadFormatter('stylish');
+  const results = await eslint.lintFiles(["**/*.js"]);
+  const formatter = await eslint.loadFormatter("stylish");
   const resultText = formatter.format(results);
 
   // Filter out warnings if you only want to fail the test for errors
@@ -11,7 +11,6 @@ test('(5 pts) eslint lint', async () => {
 
   if (hasErrors) {
     console.error(resultText);
-    throw new Error('Linting errors found');
+    throw new Error("Linting errors found");
   }
 });
-
