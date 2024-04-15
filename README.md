@@ -1,6 +1,28 @@
+## To-Do
+
+- implement indexing/search
+- testing for all endpoints
+  - AuthoritativeCourses
+  - AthoritativeStudents
+  - Clients
+  - Students
+  - Courses
+- deployment on AWS
+- paper
+  - §1, Introduction
+  - §2, Example
+  - §3, 4, 5 Design & Implementation
+  - §6, Evaluation
+  - §7, Discussion
+  - §8, Related work
+  - §9, Conclusion
+- poster
+
 # Architecture
 
-# `authoritativeCourses`
+The following describes all endpoints related to the application.
+
+## `authoritativeCourses`
 
 Only used for the query and index phase.
 
@@ -10,15 +32,15 @@ This is intended to emulate a database connection. Alternatively this can be vie
 
 There should only be one `authoritativeCourses` node.
 
-## `authoritativeCourses/list[]`
+### `authoritativeCourses/list[]`
 
 lists the codes of all of the known courses
 
-## `authoritativeCourses/detail[subject, number]`
+### `authoritativeCourses/detail[subject, number]`
 
 provides details about a single course. This is the corresponding value in `courses.json`.
 
-# `authoritativeStudents`
+## `authoritativeStudents`
 
 Only used for the query and index phase.
 
@@ -26,15 +48,15 @@ Holds the authoritative data about every student from `students.json`.
 
 There should only be one `authoritativeStudents` node
 
-## `authoritativeStudents/list[]`
+### `authoritativeStudents/list[]`
 
 lists the codes of all of the students `studentTokens`.
 
-## `authoritativeStudents/detail[studentToken]`
+### `authoritativeStudents/detail[studentToken]`
 
 provides details about a single student.
 
-# `client`
+## `client`
 
 This is what the users of the web interface talk to. Orchestrates requests on the behalf of clients.
 
@@ -42,65 +64,65 @@ There may be many client nodes to distribute load.
 
 Requests made to these services should not be trusted, since these services will be exposed to the internet.
 
-## `client/ready[node, nodeSecret]`
+### `client/ready[node, nodeSecret]`
 
 How the `students` and `courses` nodes tell the `client`s that they are ready to start processing requests. If this is not exposed to the internet we don't need to have any `nodeSecret`
 
-## `client/search[{subject, code, title, description, instructor}]`
+### `client/search[{subject, code, title, description, instructor}]`
 
 Set a parameter to null if you're not making any specific search in that category. This can be implemented with mapreduce or something similar
 
-## `client/listRegister[studentToken]`
+### `client/listRegister[studentToken]`
 
 Lists all the courses the student is registered for this term
 
-## `client/addRegister[subject, number, studentToken]`
+### `client/addRegister[subject, number, studentToken]`
 
 Attempts to register a student to a course. Can fail.
 
-# `students`
+## `students`
 
 Stores which courses each student is registered for. Also stores the students qualifications, which courses the student has taken in the past.
 
-## `students/lock[studentToken] -> studentsLock`
+### `students/lock[studentToken] -> studentsLock`
 
 Grabs a lock on registering a student for this course. May fail if they have already registered for 5 courses.
 
-## `students/unlock[studentToken]`
+### `students/unlock[studentToken]`
 
 Removes the lock, probably since the course endpoint cancelled. Cannot cancel if you already registered.
 
-## `students/submit[studentsLock, studentToken]`
+### `students/submit[studentsLock, studentToken]`
 
 Submits the registration. Never fails if you submit the right token.
 
-## `students/listRegister[studentToken]`
+### `students/listRegister[studentToken]`
 
 Lists all courses that the student is currently registered for
 
-# `courses`
+## `courses`
 
-## `courses/lock[studentRecord, studentToken] -> coursesLock`
+### `courses/lock[studentRecord, studentToken] -> coursesLock`
 
 Attempts to lock this student registration. May fail if the student does not qualify for the course.
 
-## `courses/submit[coursesLock, studentToken]`
+### `courses/submit[coursesLock, studentToken]`
 
 Submits the registration. Never fails if you submit the right token.
 
-## `courses/unlock[studentToken]`
+### `courses/unlock[studentToken]`
 
 Removes the registration lock, because one of the checks failed.
 
-## `courses/search[{subject, number, title, description, instructor}]`
+### `courses/search[{subject, number, title, description, instructor}]`
 
 Searches for the course using the node's internal indexes
 
-## `courses/listRegister[subject, number]`
+### `courses/listRegister[subject, number]`
 
 Lists all students that are registerd for this course
 
-# Operation
+## Operation
 
 The `students` nodes make requests to the `authoritativeStudents` node to gather all of the data. They save the student info in their local store. Each node is only responsible for the students that consistent hash to them.
 
@@ -116,7 +138,7 @@ When a user tells the client node to search, the client sends the search request
 
 The results of the registration go in persistent storage.
 
-# Assumptions / Invariants
+## Assumptions / Invariants
 
 We are imagining a setting where all of the course data and student data are frozen, and students are searching for and registering for courses. Several unrealistic simplifying assumptions are made. These should be assumed, checked, and verified as makes sense.
 
@@ -144,7 +166,7 @@ Once a student registers for a course, that course will appear in their listing,
 
 All courses are offered this term (only), and there is exactly one section for each.
 
-# Ways to extend
+## Ways to extend
 
 We could imagine syncing with the authoritative nodes at the end (or periodically during) the registration process
 
@@ -152,7 +174,7 @@ Our assumption that no nodes go down is a bad one. We can make the authoritative
 
 We could imagine keeping the change hashes for each course and student around. We could periodically sync up with the authoritative databases to see if students or courses have new info.
 
-# Scratch
+## Scratch
 
 ```
 jq -s '[. | .[] | {(.code.subject + " " +  .code.number): .}] | sort | add' minimized.jsonl > courses.json
