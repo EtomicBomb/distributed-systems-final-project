@@ -423,6 +423,14 @@ function AuthoritativeStudents() {
   };
 }
 
+async function esvs(promise) {
+  const [es, vs] = await promise;
+  if (Object.keys(es).length > 0) {
+    throw new Error('some nodes responded with an error', {cause: es});
+  }
+  return vs;
+}
+
 function Client() {
   // Set a parameter to null if you're not making any specific search in that
   // category. This can be implemented with mapreduce or something similar
@@ -649,7 +657,6 @@ function Courses() {
     initialized = true;
     return map.size;
   };
-
   /* searches for the course using the node's internal indexes
      params:
        - subject: course department
@@ -722,7 +729,6 @@ function Courses() {
   // Attempts to lock this student registration. May fail if the student
   // does not qualify for the course.
   this.lock = async (code, record, token) => {
-    // XXX student is qualified
     const courseRecord = map.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
       throw new Error("you are not qualiafied to take this course");
