@@ -1,7 +1,7 @@
 ## To-Do
 
 - implement indexing/search: **Alex**
-- document code **Alex**
+- document code: **Alex**
 - testing for all endpoints
   - Clients
     - client.ready
@@ -84,9 +84,13 @@ How the `students` and `courses` nodes tell the `client`s that they are ready to
 
 Set a parameter to null if you're not making any specific search in that category. This can be implemented with mapreduce or something similar
 
-### `client/listRegister[studentToken]`
+### `client/studentsTaking[studentToken]`
 
 Lists all the courses the student is registered for this term
+
+### `client/coursesTaking[subject, number]`
+
+Lists all students that are registerd for this course
 
 ### `client/addRegister[subject, number, studentToken]`
 
