@@ -226,6 +226,87 @@ test(
   () => setup({ client: 2, students: 3, courses: 3 }, async (gidNodes) => {}),
   10000,
 );
+
+// sample course data.  certain fields are aritificially removed as they are not
+// necessary to create the inverted index
+let courseData = {
+  "AFRI 0001": {
+    code: {
+      subject: "AFRI",
+      number: "0001",
+    },
+    title:
+      "From Octavia Butler to N.K Jemisin, Black Feminist and Queer Theories in Science-Fiction and Fantasy",
+    description:
+      "Through the analytical lenses offered by Black feminist and queer theories, this course engages works of Black speculative fiction as modes of theorizing questions of race, gender, sexuality, class, environmental justice, interpersonal politics and more. Through course readings, seminar discussions, and creative writing projects, students will critically analyze works of speculative fiction written by Black authors and broaden their knowledge of Black speculative literature, with a particular focus on science fiction and fantasy.",
+    aliases: [],
+    offerings: [
+      {
+        date: "202200",
+        section: 1,
+        instructors: ["Senit Kidane"],
+        enrollment: 3,
+        demographics: null,
+      },
+    ],
+  },
+  "PHIL 0412": {
+    code: {
+      subject: "PHIL",
+      number: "0412",
+    },
+    title: "Climate Change Ethics",
+    description:
+      "Climate change is commonly said to be one of the defining issues of the 21st century. Calls for, and movement towards, significant action seem to be growing. Yet what ought to be done? This is a moral question as much as, if not more so, than an economic, political, or scientific question. In this course, then, we will consider climate change from the point of view of moral philosophy.",
+    aliases: [],
+    offerings: [
+      {
+        date: "202210",
+        section: 1,
+        instructors: ["Marc Hewitt"],
+        enrollment: 10,
+        demographics: {
+          freshmen: 0,
+          sophomores: 0,
+          juniors: 4,
+          seniors: 0,
+          graduates: 0,
+          others: 6,
+        },
+      },
+    ],
+  },
+  "HIST 1360": {
+    code: {
+      subject: "HIST",
+      number: "1360",
+    },
+    title: "Amazonia from the Prehuman to the Present",
+    description:
+      "This course merging lecture and discussions will examine the fascinating and contested history of one of the world’s most complex fluvial ecosystems: Amazonia, in equatorial South America, from its pre-human history to the present day. The course will include readings and discussions on the region’s ecological origins; the social history of its diverse Indigenous and immigrant populations, including African-descended peoples; exploration myths and European colonial projects; and more recent efforts to exploit and protect Amazonia’s extraordinary natural and human resources. The course will use tools and resources from archaeology, anthropology, biology, and social and cultural history, and will also examine popular representations of the Amazon through novels, newspapers, podcasts, and film.",
+    aliases: [
+      {
+        subject: "ARCH",
+        number: "1242",
+      },
+    ],
+    offerings: [
+      {
+        instructors: ["Neil Safier"],
+      },
+      {
+        instructors: ["Neil F Safier"],
+      },
+    ],
+  },
+};
+let courses = new Map(Object.entries(courseData));
+
+test("search utils", async () => {
+  // create inverted index from objs
+  let invertedIdx = distribution.util.createInvertedIdx(courses);
+});
+
 // --------------------------------------------------------------------------
 
 // dummy testing for debugging purposes

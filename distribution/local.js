@@ -644,7 +644,7 @@ function Courses() {
     // NOTE: current implementation of search assumes no indexing
     //   aside from base map.  Will have to update search once indexing
     //   is implemented
-
+    
     // set state of course node to initialized
     initialized = true;
     return map.size;

@@ -3,6 +3,12 @@ const { promisify } = require("node:util");
 const { JSDOM } = require("jsdom");
 const serialization = require("./serialization");
 const id = require("./id");
+const natural = require("natural");
+
+// stemmer for created the inverted index
+const porterStemmer = natural.PorterStemmer;
+// stop words
+const stopwords = require("./stopwords");
 
 function getActualKey(key, value) {
   return key === null ? id.getID(value) : key;
@@ -150,6 +156,41 @@ function toAsync(func) {
   };
 }
 
+/* 
+creates an inverted index for courses
+
+params: 
+  - courses: map of course subject + code -> course details
+
+return:
+  - map, inverted index of stemmed term -> {freq: n, course: [subject, code]}
+*/
+function createInvertedIdx(courses) {
+  let invertedIdx = new Map();
+
+  // iterate over each course to create inverted index
+  courses.forEach((courseCode, details) => {
+    let subject = details.code.subject.toLowerCase();
+    let number = details.code.number.toLowerCase();
+    let title = details.title.toLowerCase();
+    let description = detail.description.toLowerCase();
+    let instructors = details.offerings.flatMap((offering) =>
+      offering.instructors.map((ins) => ins.toLowerCase()),
+    );
+
+    // process text: merge title and description, split, stem, remove stop words
+    titleAndDesc = [
+      ...title.split(" "),
+      ...description.split(" "),
+      ...instructors.split(" "),
+    ];
+    titleAndDesc = titleAndDesc.filter((word) => !stopwords.includes(word));
+    titleAndDesc = titleAndDesc.map((word) => porterStemmer.stem(word));
+
+    // merge repeat words and map to frequency count and course code
+  });
+}
+
 module.exports = {
   serialize: serialization.serialize,
   deserialize: serialization.deserialize,
@@ -160,5 +201,6 @@ module.exports = {
   getPageContents,
   getUrls,
   id,
+  createInvertedIdx,
   wire: { createRPC, asyncRPC, toAsync },
 };
