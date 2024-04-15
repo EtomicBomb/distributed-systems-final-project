@@ -1,13 +1,18 @@
-const http = require('node:http');
-const path = require('node:path');
-const {randomUUID} = require('node:crypto');
-const process = require('node:process');
-const {unlink, readdir, mkdir, writeFile, readFile} =
-    require('node:fs/promises');
-const childProcess = require('node:child_process');
+const http = require("node:http");
+const path = require("node:path");
+const { randomUUID } = require("node:crypto");
+const process = require("node:process");
+const {
+  unlink,
+  readdir,
+  mkdir,
+  writeFile,
+  readFile,
+} = require("node:fs/promises");
+const childProcess = require("node:child_process");
 
-const {putInDistribution} = require('./all');
-const util = require('./util/util');
+const { putInDistribution } = require("./all");
+const util = require("./util/util");
 
 function Status() {
   this.counts = 0;
@@ -31,7 +36,7 @@ function Status() {
     return getter.call(this);
   };
   this.stop = async (closeToken, node) => {
-    throw new Error('handleClose');
+    throw new Error("handleClose");
   };
   this.spawn = async (config) => {
     config = config || {};
@@ -45,16 +50,18 @@ function Status() {
       resolve(node);
     });
     config = util.serialize(config);
-    const correctPath = path.join(__dirname, '../distribution.js');
-    childProcess.spawn('node', [correctPath, '--config', config], {
-      stdio: 'inherit',
-    }).on('error', (e) => console.error('spawn error', e));
+    const correctPath = path.join(__dirname, "../distribution.js");
+    childProcess
+      .spawn("node", [correctPath, "--config", config], {
+        stdio: "inherit",
+      })
+      .on("error", (e) => console.error("spawn error", e));
     const node = await promise;
     await util.sendToAll({
       message: [node],
-      service: 'groups',
-      method: 'registerKnownNode',
-      gid: 'all',
+      service: "groups",
+      method: "registerKnownNode",
+      gid: "all",
       exclude: null,
       subset: null,
     });
@@ -69,10 +76,10 @@ function Groups() {
     this.all[util.id.getSID(node)] = node;
   };
   this.get = async (gid) => {
-    if (gid === 'local') {
-      return {[util.id.getSID(global.nodeConfig)]: global.nodeConfig};
+    if (gid === "local") {
+      return { [util.id.getSID(global.nodeConfig)]: global.nodeConfig };
     }
-    if (gid === 'all') {
+    if (gid === "all") {
       return this.all;
     }
     let group = this.gidToGroup.get(gid);
@@ -117,16 +124,17 @@ function Groups() {
 
 function Gossip() {
   this.received = new Set();
-  this.recv = async (mid, {service, method}, message, gid) => {
+  this.recv = async (mid, { service, method }, message, gid) => {
     if (this.received.has(mid)) {
       return;
     }
     this.received.add(mid);
     // no await
-    distribution[gid].async.gossip.sendMID(mid, message, {service, method});
+    distribution[gid].async.gossip.sendMID(mid, message, { service, method });
     service = await distribution.local.async.routes.get(service);
     const [e, v] = await new Promise((resolve) =>
-      service[method].call(service, ...message, resolve));
+      service[method].call(service, ...message, resolve)
+    );
     if (isError(e)) {
       throw e;
     }
@@ -156,9 +164,9 @@ function isError(e) {
     return false;
   }
   const isEmptyObject =
-        typeof e === 'object' &&
-        Object.keys(e).length === 0 &&
-        !(e instanceof Error);
+    typeof e === "object" &&
+    Object.keys(e).length === 0 &&
+    !(e instanceof Error);
   if (isEmptyObject) {
     return false;
   }
@@ -170,8 +178,9 @@ function HandleClose() {
   this.promise = () => {
     const closeToken = randomUUID();
     const donePromise = new Promise((res) =>
-      this.installed.set(closeToken, res));
-    return {message: [closeToken, global.nodeConfig], donePromise};
+      this.installed.set(closeToken, res)
+    );
+    return { message: [closeToken, global.nodeConfig], donePromise };
   };
   this.handleClose = async (closeToken) => {
     this.installed.get(closeToken)();
@@ -180,27 +189,28 @@ function HandleClose() {
 
 // A message communication interface
 function Comm() {
-  this.send = async (message, {node, service, method}) => {
+  this.send = async (message, { node, service, method }) => {
     const options = {
       host: node.ip,
       port: node.port,
       path: `/${service}/${method}`,
-      method: 'POST',
-      headers: {'Content-type': 'application/json', 'Connection': 'close'},
+      method: "POST",
+      headers: { "Content-type": "application/json", Connection: "close" },
     };
     let donePromise = Promise.resolve();
-    if (service === 'status' && method === 'stop') {
+    if (service === "status" && method === "stop") {
       // we have to wait till the server tells us it stopped
-      ({message, donePromise} = distribution.local.async.handleClose.promise());
+      ({ message, donePromise } =
+        distribution.local.async.handleClose.promise());
     }
     message = util.serialize(message);
     let body = [];
     await new Promise((resolve, reject) => {
       const req = http.request(options, (res) => {
-        res.on('data', (chunk) => body.push(chunk));
-        res.on('end', resolve);
+        res.on("data", (chunk) => body.push(chunk));
+        res.on("end", resolve);
       });
-      req.on('error', (e) => reject(new Error('request send', {cause: e})));
+      req.on("error", (e) => reject(new Error("request send", { cause: e })));
       req.write(message);
       req.end();
     });
@@ -228,20 +238,26 @@ function RPC() {
 
 function MapReduceMapper() {
   this.map = async (map, job, gid, hash, key1, memOrStore) => {
-    const value1 = await distribution.local.async[memOrStore].get(
-        {gid, key: key1});
+    const value1 = await distribution.local.async[memOrStore].get({
+      gid,
+      key: key1,
+    });
     let results = await Promise.resolve(map(key1, value1));
     results = Array.isArray(results) ? results : [results];
     results = results.map((result) => Object.entries(result).flat());
-    await Promise.all(results.map(([key2, value2]) => util.callOnHolder({
-      key: key2,
-      value: null,
-      gid,
-      hash,
-      message: [job, key2, value2, memOrStore],
-      service: 'mapReduceReducer',
-      method: 'shuffle',
-    })));
+    await Promise.all(
+      results.map(([key2, value2]) =>
+        util.callOnHolder({
+          key: key2,
+          value: null,
+          gid,
+          hash,
+          message: [job, key2, value2, memOrStore],
+          service: "mapReduceReducer",
+          method: "shuffle",
+        })
+      )
+    );
   };
 }
 
@@ -259,22 +275,24 @@ function MapReduceReducer() {
   };
   this.reduce = async (job, reduce) => {
     const key2ToValue2s = this.jobToKey2ToValue2s.get(job) || [];
-    return await Promise.all([...key2ToValue2s].map(([key2, value2s]) =>
-      Promise.resolve(reduce(key2, value2s)),
-    ));
+    return await Promise.all(
+      [...key2ToValue2s].map(([key2, value2s]) =>
+        Promise.resolve(reduce(key2, value2s))
+      )
+    );
   };
 }
 
 function getGidKey(gidKey) {
-  const gid = !gidKey || gidKey.gid === undefined ? 'all' : gidKey.gid;
+  const gid = !gidKey || gidKey.gid === undefined ? "all" : gidKey.gid;
   const key = !gidKey || gidKey.key === undefined ? gidKey : gidKey.key;
-  return {gid, key};
+  return { gid, key };
 }
 
 function Mem() {
   this.store = new Map();
   this.get = async (gidKey) => {
-    const {gid, key} = getGidKey(gidKey);
+    const { gid, key } = getGidKey(gidKey);
     if (!this.store.has(gid)) {
       throw new Error(`could not find gid ${gid}`);
     }
@@ -288,7 +306,7 @@ function Mem() {
     return gidStore.get(key);
   };
   this.put = async (value, gidKey) => {
-    let {gid, key} = getGidKey(gidKey);
+    let { gid, key } = getGidKey(gidKey);
     key = util.getActualKey(key, value);
     if (!this.store.has(gid)) {
       this.store.set(gid, new Map());
@@ -297,7 +315,7 @@ function Mem() {
     return value;
   };
   this.del = async (gidKey) => {
-    const {gid, key} = getGidKey(gidKey);
+    const { gid, key } = getGidKey(gidKey);
     if (!this.store.has(gid)) {
       throw new Error(`could not find gid ${gid}`);
     }
@@ -312,12 +330,13 @@ function Mem() {
 }
 
 function Store() {
-  const getLocationHead = (gid) => path.join(
+  const getLocationHead = (gid) =>
+    path.join(
       __dirname,
-      '../store/store',
+      "../store/store",
       util.id.getNID(global.nodeConfig),
-      gid,
-  );
+      gid
+    );
   const getAll = async (gid) => {
     let paths;
     try {
@@ -330,13 +349,13 @@ function Store() {
   const getLocation = async (key, gid, create) => {
     const head = getLocationHead(gid);
     if (create) {
-      await mkdir(head, {recursive: true});
+      await mkdir(head, { recursive: true });
     }
     key = encodeURIComponent(key);
     return path.join(head, key);
   };
   this.get = async (gidKey) => {
-    let {gid, key} = getGidKey(gidKey);
+    let { gid, key } = getGidKey(gidKey);
     if (key === null) {
       return await getAll(gid);
     }
@@ -344,19 +363,19 @@ function Store() {
     try {
       value = await readFile(await getLocation(key, gid, false));
     } catch (e) {
-      throw new Error(`could not find ${e}`, {cause: e});
+      throw new Error(`could not find ${e}`, { cause: e });
     }
     return util.deserialize(value, (expr) => eval(expr));
   };
   this.put = async (value, gidKey) => {
-    let {gid, key} = getGidKey(gidKey);
+    let { gid, key } = getGidKey(gidKey);
     key = util.getActualKey(key, value);
     await writeFile(await getLocation(key, gid, true), util.serialize(value));
     return value;
   };
   this.del = async (gidKey) => {
     const ret = await this.get(gidKey);
-    let {gid, key} = getGidKey(gidKey);
+    let { gid, key } = getGidKey(gidKey);
     await unlink(await getLocation(key, gid, false));
     return ret;
   };
@@ -368,7 +387,7 @@ function AuthoritativeCourses() {
     if (map !== undefined) {
       return;
     }
-    let ret = path.join(__dirname, '../data/courses.json');
+    let ret = path.join(__dirname, "../data/courses.json");
     ret = await readFile(ret);
     ret = JSON.parse(ret);
     map = new Map(Object.entries(ret));
@@ -389,7 +408,7 @@ function AuthoritativeStudents() {
     if (map !== undefined) {
       return;
     }
-    let ret = path.join(__dirname, '../data/students.json');
+    let ret = path.join(__dirname, "../data/students.json");
     ret = await readFile(ret);
     ret = JSON.parse(ret);
     map = new Map(Object.entries(ret));
@@ -408,81 +427,96 @@ function Client() {
   this.ready = async (node, secret) => {
     // TODO: figure out how we're going to do this functionality
   };
-  this.search = async ({code, title, description, instructor}) => {
+  this.search = async ({ code, title, description, instructor }) => {
+    return await util.callOnHolder({
+      key: token,
+      value: null,
+      gid: "students",
+      hash: util.id.consistentHash,
+      message: [token],
+      service: "students",
+      method: "listRegister",
+    });
   };
   this.studentsTaking = async (token) => {
     return await util.callOnHolder({
       key: token,
       value: null,
-      gid: 'students',
+      gid: "students",
       hash: util.id.consistentHash,
       message: [token],
-      service: 'students',
-      method: 'listRegister',
+      service: "students",
+      method: "listRegister",
     });
   };
   this.coursesTaking = async (code) => {
     return await util.callOnHolder({
       key: code,
       value: null,
-      gid: 'courses',
+      gid: "courses",
       hash: util.id.consistentHash,
       message: [code],
-      service: 'courses',
-      method: 'listRegister',
+      service: "courses",
+      method: "listRegister",
     });
   };
   this.register = async (code, token) => {
     const record = await util.callOnHolder({
       key: token,
       value: null,
-      gid: 'students',
+      gid: "students",
       hash: util.id.consistentHash,
       message: [token],
-      service: 'students',
-      method: 'getRecord',
+      service: "students",
+      method: "getRecord",
     });
     let studentsLock = util.callOnHolder({
       key: token,
       value: null,
-      gid: 'students',
+      gid: "students",
       hash: util.id.consistentHash,
       message: [code, token],
-      service: 'students',
-      method: 'lock',
+      service: "students",
+      method: "lock",
     });
     let coursesLock = util.callOnHolder({
       key: code,
       value: null,
-      gid: 'courses',
+      gid: "courses",
       hash: util.id.consistentHash,
       message: [code, record, token],
-      service: 'courses',
-      method: 'lock',
+      service: "courses",
+      method: "lock",
     });
-    [studentsLock, coursesLock] = await Promise.allSettled([studentsLock, coursesLock]);
-    const success = studentsLock.status === 'fulfilled' && coursesLock.status === 'fulfilled';
+    [studentsLock, coursesLock] = await Promise.allSettled([
+      studentsLock,
+      coursesLock,
+    ]);
+    const success =
+      studentsLock.status === "fulfilled" && coursesLock.status === "fulfilled";
     const studentsSubmit = util.callOnHolder({
       key: token,
       value: null,
-      gid: 'students',
+      gid: "students",
       hash: util.id.consistentHash,
       message: [code, studentsLock.value, token],
-      service: 'students',
-      method: success ? 'submit' : 'unlock',
+      service: "students",
+      method: success ? "submit" : "unlock",
     });
     const coursesSubmit = util.callOnHolder({
       key: code,
       value: null,
-      gid: 'courses',
+      gid: "courses",
       hash: util.id.consistentHash,
       message: [code, coursesLock.value, token],
-      service: 'courses',
-      method: success ? 'submit' : 'unlock',
+      service: "courses",
+      method: success ? "submit" : "unlock",
     });
     await Promise.all([studentsSubmit, coursesSubmit]);
     if (!success) {
-      throw new Error('registration failed', {cause: [studentsLock.reason, coursesLock.reason]});
+      throw new Error("registration failed", {
+        cause: [studentsLock.reason, coursesLock.reason],
+      });
     }
   };
 }
@@ -490,7 +524,7 @@ function Client() {
 async function esvs(promise) {
   const [es, vs] = await promise;
   if (Object.keys(es).length > 0) {
-    throw new Error('some nodes responded with an error', {cause: es});
+    throw new Error("some nodes responded with an error", { cause: es });
   }
   return vs;
 }
@@ -500,18 +534,20 @@ function Students() {
   let locks;
   let registered;
   this.beginIndex = async () => {
-    const auth = 'authoritativeStudents';
-    const remote = {service: auth, method: 'list'};
+    const auth = "authoritativeStudents";
+    const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
     res = Object.values(res)[0];
-    res = await util.whichHashTo(res, 'students', util.id.consistentHash);
+    res = await util.whichHashTo(res, "students", util.id.consistentHash);
     const tokens = res.get(util.id.getNID(global.nodeConfig));
 
-    const details = {service: auth, method: 'details'};
+    const details = { service: auth, method: "details" };
     res = await esvs(distribution[auth].async.comm.send([tokens], details));
     map = new Map(Object.values(res)[0]);
 
-    locks = new Map(tokens.map((token) => [token, {locks: new Set(), codes: new Set()}]));
+    locks = new Map(
+      tokens.map((token) => [token, { locks: new Set(), codes: new Set() }])
+    );
     registered = new Map(tokens.map((token) => [token, new Set()]));
     return map.size;
   };
@@ -526,15 +562,18 @@ function Students() {
     return [...registered.get(token)];
   };
   this.lock = async (code, token) => {
-    const alreadyRegistered = locks.get(token).codes.size + registered.get(token).size;
+    const alreadyRegistered =
+      locks.get(token).codes.size + registered.get(token).size;
     if (alreadyRegistered >= 5) {
-      throw new Error(`student has already locked ${alreadyRegistered} courses`);
+      throw new Error(
+        `student has already locked ${alreadyRegistered} courses`
+      );
     }
     if (registered.get(token).has(code)) {
-      throw new Error('student is already registered for this course');
+      throw new Error("student is already registered for this course");
     }
     if (locks.get(token).codes.has(code)) {
-      throw new Error('student is already locked for this course');
+      throw new Error("student is already locked for this course");
     }
     const lock = `stud_lock_${randomUUID()}`;
     locks.get(token).locks.add(lock);
@@ -547,7 +586,7 @@ function Students() {
   };
   this.submit = async (code, lock, token) => {
     if (!locks.get(token).locks.has(lock)) {
-      throw new Error('we do not have a lock for this course');
+      throw new Error("we do not have a lock for this course");
     }
     locks.get(token).locks.delete(lock);
     locks.get(token).codes.delete(code);
@@ -561,73 +600,139 @@ function prerequisiteQualifications(taken, prerequisites) {
     return true;
   }
   const [tag, value] = Object.entries(prerequisites).flat();
-  if (tag === 'any') {
+  if (tag === "any") {
     return value.some((qual) => prerequisiteQualifications(taken, qual));
   }
-  if (tag === 'all') {
+  if (tag === "all") {
     return value.every((qual) => prerequisiteQualifications(taken, qual));
   }
-  if (tag === 'exam') {
+  if (tag === "exam") {
     return false;
   }
-  if (tag === 'course') {
-    const {subject, number} = value;
+  if (tag === "course") {
+    const { subject, number } = value;
     return taken.includes(`${subject} ${number}`);
   }
   throw new Error(`unknown prerequisite ${tag}`);
 }
 
+// Handles course registration states (list of students, capacity), course search
 function Courses() {
-  let map;
-  let registered;
-  let locks;
+  let map; // map of course index
+  let registered; // map of students registered for each course
+  let locks; // map of lock for course registration
+  let initialized = false;
+
+  // initializes courses index for current node, have to be called first!
   this.beginIndex = async () => {
-    const auth = 'authoritativeCourses';
-    const remote = {service: auth, method: 'list'};
+    // don't index course node is already initialized
+    if (initialized) {
+      return map.size;
+    }
+    const auth = "authoritativeCourses";
+    const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
     res = Object.values(res)[0];
-    res = await util.whichHashTo(res, 'courses', util.id.consistentHash);
+    res = await util.whichHashTo(res, "courses", util.id.consistentHash);
     const ours = res.get(util.id.getNID(global.nodeConfig));
-    const details = {service: auth, method: 'details'};
+    const details = { service: auth, method: "details" };
     res = await esvs(distribution[auth].async.comm.send([ours], details));
     map = new Map(Object.values(res)[0]);
-    locks = new Map(ours.map((code) => [code, {locks: new Set(), tokens: new Set()}]));
+
+    console.log("map", map);
+
+    locks = new Map(
+      ours.map((code) => [code, { locks: new Set(), tokens: new Set() }])
+    );
     registered = new Map(ours.map((code) => [code, new Set()]));
     // TODO: indexing for search
+
+    // set state of course node to initialized
+    initialized = true;
     return map.size;
   };
-  this.search = async ({code, title, description, instructor}) => {
+
+  /* searches for the course using the node's internal indexes
+     params:
+       - subject: course department
+       - number: course code
+       - title: descriptive name of course
+       - description: partial (or whole) description of course
+       - instructor: name of instructor
+     returns:
+       - map, list of course objs (course code -> description)
+  */
+  this.search = async ({ subject, code, title, description, instructor }) => {
+    // make sure index is ready
+    await this.beginIndex();
+
+    // null check
+
+    // to lowercase
+
+    // change number is string
+
+    // Iterate over each course object in the map
+    return Object.values(map).filter((course) => {
+      // Check if any of the fields match the query
+      return (
+        // matching the course code and subject
+        (course.code.subject.toLowerCase().includes(subject) &&
+          course.code.number.includes(code)) ||
+        // matching title
+        course.title.toLowerCase().includes(title.toLowerCase()) ||
+        // matching course description
+        (course.description &&
+          course.description.toLowerCase().includes(description)) ||
+        // matching instructor
+        (course.offerings &&
+          course.offerings.some((offering) =>
+            offering.instructors.some((instructors) =>
+              instructors.toLowerCase().includes(instructor)
+            )
+          ))
+      );
+    });
   };
+
+  // lists all students that are registered for this course
   this.listRegister = async (code) => {
     return [...registered.get(code)];
   };
+
+  // Attempts to lock this student registration. May fail if the student
+  // does not qualify for the course.
   this.lock = async (code, record, token) => {
     // XXX student is qualified
     const courseRecord = map.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
-      throw new Error('you are not qualiafied to take this course');
+      throw new Error("you are not qualiafied to take this course");
     }
     if (!courseRecord.semester_range.includes(record.semester)) {
-      throw new Error('you are not in the right semester to take this course');
+      throw new Error("you are not in the right semester to take this course");
     }
     if (registered.get(code).has(token)) {
-      throw new Error('student is already registered for this course');
+      throw new Error("student is already registered for this course");
     }
     if (locks.get(code).tokens.has(token)) {
-      throw new Error('student is already locked for this course');
+      throw new Error("student is already locked for this course");
     }
     const lock = `course_lock_${randomUUID()}`;
     locks.get(code).locks.add(lock);
     locks.get(code).tokens.add(token);
     return lock;
   };
+
+  // removes the registration lock, because one of the checks failed.
   this.unlock = async (code, lock, token) => {
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
   };
+
+  // submits the registration; never fails if you submit the right token.
   this.submit = async (code, lock, token) => {
     if (!locks.get(code).locks.has(lock)) {
-      throw new Error('we do not have a lock for this course');
+      throw new Error("we do not have a lock for this course");
     }
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
@@ -665,8 +770,8 @@ function serviceToCallbackService(service) {
     if (args.length === method.length + 1) {
       const callback = args.pop();
       Promise.resolve(method.call(service, ...args))
-          .then((v) => callback(null, v))
-          .catch((e) => callback(e, null));
+        .then((v) => callback(null, v))
+        .catch((e) => callback(e, null));
     } else if (args.length === method.length) {
       console.trace(`did not provide a callback for ${method.toString()}`);
       // they did not the callback, ignore the promise

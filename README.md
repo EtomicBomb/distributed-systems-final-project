@@ -1,6 +1,6 @@
 # Architecture
 
-# `authoritativeCourses` 
+# `authoritativeCourses`
 
 Only used for the query and index phase.
 
@@ -32,9 +32,9 @@ lists the codes of all of the students `studentTokens`.
 
 ## `authoritativeStudents/detail[studentToken]`
 
-provides details about a single student. 
+provides details about a single student.
 
-# `client` 
+# `client`
 
 This is what the users of the web interface talk to. Orchestrates requests on the behalf of clients.
 
@@ -46,7 +46,7 @@ Requests made to these services should not be trusted, since these services will
 
 How the `students` and `courses` nodes tell the `client`s that they are ready to start processing requests. If this is not exposed to the internet we don't need to have any `nodeSecret`
 
-## `client/search[{subject, number, title, description, instructor}]` 
+## `client/search[{subject, code, title, description, instructor}]`
 
 Set a parameter to null if you're not making any specific search in that category. This can be implemented with mapreduce or something similar
 
@@ -102,15 +102,15 @@ Lists all students that are registerd for this course
 
 # Operation
 
-The `students` nodes make requests to the `authoritativeStudents` node to gather all of the data. They save the student info in their local store. Each node is only responsible for the students that consistent hash to them. 
+The `students` nodes make requests to the `authoritativeStudents` node to gather all of the data. They save the student info in their local store. Each node is only responsible for the students that consistent hash to them.
 
-The `courses` nodes make requests to the `authoritativeClients` node to gather all of the data. They save the course info in their local store. They then do indexing so that searches are fast. Each node is only responsible for the courses that consistent hash to them. 
+The `courses` nodes make requests to the `authoritativeClients` node to gather all of the data. They save the course info in their local store. They then do indexing so that searches are fast. Each node is only responsible for the courses that consistent hash to them.
 
 Once this setup phase is complete, each node sends all other nodes a "ready" message.
 
 The client waits for all the ready messages before it processes any requests
 
-When a user tells the client node that they want to register for a course, the client attempts to get a lock on the `courses` and get a lock with the `students` endpoint. Then, if and only if it obtains both, it will make `submit` requests to the courses and students endpoint, and reports back whether the request successful 
+When a user tells the client node that they want to register for a course, the client attempts to get a lock on the `courses` and get a lock with the `students` endpoint. Then, if and only if it obtains both, it will make `submit` requests to the courses and students endpoint, and reports back whether the request successful
 
 When a user tells the client node to search, the client sends the search request to all of the `courses` nodes. The client then aggregates the responses.
 
@@ -152,7 +152,8 @@ Our assumption that no nodes go down is a bad one. We can make the authoritative
 
 We could imagine keeping the change hashes for each course and student around. We could periodically sync up with the authoritative databases to see if students or courses have new info.
 
-# Scratch 
+# Scratch
+
 ```
 jq -s '[. | .[] | {(.code.subject + " " +  .code.number): .}] | sort | add' minimized.jsonl > courses.json
 ```

@@ -1,8 +1,8 @@
-const https = require('node:https');
-const {promisify} = require('node:util');
-const {JSDOM} = require('jsdom');
-const serialization = require('./serialization');
-const id = require('./id');
+const https = require("node:https");
+const { promisify } = require("node:util");
+const { JSDOM } = require("jsdom");
+const serialization = require("./serialization");
+const id = require("./id");
 
 function getActualKey(key, value) {
   return key === null ? id.getID(value) : key;
@@ -13,18 +13,25 @@ async function whichHashTo(keys, gid, hash) {
   const nids = Object.values(nodes).map((node) => id.getNID(node));
   const result = keys.map((key) => {
     const nid = hash(id.getID(key), nids);
-    return {nid, key};
+    return { nid, key };
   });
   const ret = new Map(nids.map((node) => [node, []]));
-  for (const {nid, key} of result) {
+  for (const { nid, key } of result) {
     ret.get(nid).push(key);
   }
   return ret;
 }
 
-async function callOnHolder(
-    {key, value, gid, hash, message, service, method},
-) {
+// sends message to
+async function callOnHolder({
+  key,
+  value,
+  gid,
+  hash,
+  message,
+  service,
+  method,
+}) {
   let nodes = await distribution.local.async.groups.get(gid);
 
   nodes = Object.values(nodes);
@@ -37,13 +44,14 @@ async function callOnHolder(
   const nid = hash(kid, Object.keys(nodes));
   const node = nodes[nid];
 
-  return await distribution.local.async.comm.send(
-      message,
-      {node, service, method},
-  );
+  return await distribution.local.async.comm.send(message, {
+    node,
+    service,
+    method,
+  });
 }
 
-async function sendToAll({message, service, method, gid, exclude, subset}) {
+async function sendToAll({ message, service, method, gid, exclude, subset }) {
   let nodes = await distribution.local.async.groups.get(gid);
   nodes = Object.values(nodes).filter((node) => id.getSID(node) !== exclude);
   if (subset) {
@@ -57,16 +65,23 @@ async function sendToAll({message, service, method, gid, exclude, subset}) {
   }
   let sidToValue = {};
   let sidToError = {};
-  const settled = await Promise.allSettled(nodes.map(async (node) =>
-    await distribution.local.async.comm.send(message, {node, service, method}),
-  ));
+  const settled = await Promise.allSettled(
+    nodes.map(
+      async (node) =>
+        await distribution.local.async.comm.send(message, {
+          node,
+          service,
+          method,
+        })
+    )
+  );
   for (let i = 0; i < nodes.length; i++) {
     const sid = id.getSID(nodes[i]);
-    const {status, value, reason} = settled[i];
-    if (status === 'fulfilled' && value !== null) {
+    const { status, value, reason } = settled[i];
+    if (status === "fulfilled" && value !== null) {
       sidToValue[sid] = value;
     }
-    if (status === 'rejected' && reason != null) {
+    if (status === "rejected" && reason != null) {
       sidToError[sid] = reason;
     }
   }
@@ -77,12 +92,13 @@ async function getPageContents(url) {
   url = new URL(url);
   let body = [];
   await new Promise((resolve, reject) => {
-    https.request(url, (res) => {
-      res.on('data', (chunk) => body.push(chunk));
-      res.on('end', resolve);
-    })
-        .on('error', reject)
-        .end();
+    https
+      .request(url, (res) => {
+        res.on("data", (chunk) => body.push(chunk));
+        res.on("end", resolve);
+      })
+      .on("error", reject)
+      .end();
   });
   return Buffer.concat(body).toString();
 }
@@ -90,12 +106,12 @@ async function getPageContents(url) {
 function getUrls(url, body) {
   const ret = [];
   const dom = new JSDOM(body);
-  for (let link of dom.window.document.querySelectorAll('a[href]')) {
-    link = link.getAttribute('href');
+  for (let link of dom.window.document.querySelectorAll("a[href]")) {
+    link = link.getAttribute("href");
     try {
       link = new URL(link, url);
     } catch (e) {
-      console.trace('failed to build url from', e, link, url);
+      console.trace("failed to build url from", e, link, url);
       continue;
     }
     link = link.href;
@@ -123,8 +139,8 @@ function createRPC(func) {
 }
 
 function toAsync(func) {
-  return function(...args) {
-    const callback = args.pop() || function() {};
+  return function (...args) {
+    const callback = args.pop() || function () {};
     try {
       const result = func(...args);
       callback(null, result);
@@ -144,5 +160,5 @@ module.exports = {
   getPageContents,
   getUrls,
   id,
-  wire: {createRPC, asyncRPC, toAsync},
+  wire: { createRPC, asyncRPC, toAsync },
 };
