@@ -1,24 +1,24 @@
 ## To-Do
 
 - implement indexing/search: **Alex**
-- document code **Alex**
+- document code: **Alex**
 - testing for all endpoints
   - Clients
-    - client.ready
-    - client/search
-    - client.listRegister
-    - client.addRegister
+    - client.ready: **Ethan**
+    - client/search: **Alex**
+    - client.listRegister: **Ethan**
+    - client.addRegister: **Ethan**
   - Students
-    - students.lock
-    - students.unlock
-    - students.submit
+    - students.lock: **Ethan**
+    - students.unlock: **Ethan**
+    - students.submit: **Ethan**
     - students.listRegister
   - Courses
-    - courses/lock
-    - courses.submit
-    - courses.unlock
-    - courses.search
-    - courses.listRegister
+    - courses/lock: **Ethan**
+    - courses.submit: **Ethan**
+    - courses.unlock: **Ethan**
+    - courses.search: **Alex**
+    - courses.listRegister: **Ethan**
 - deployment on AWS
 - paper
   - §1, Introduction: **Ben**
@@ -28,6 +28,7 @@
   - §7, Discussion
   - §8, Related work
   - §9, Conclusion
+- frontend 
 - poster
 
 # Architecture
@@ -84,9 +85,13 @@ How the `students` and `courses` nodes tell the `client`s that they are ready to
 
 Set a parameter to null if you're not making any specific search in that category. This can be implemented with mapreduce or something similar
 
-### `client/listRegister[studentToken]`
+### `client/studentsTaking[studentToken]`
 
 Lists all the courses the student is registered for this term
+
+### `client/coursesTaking[subject, number]`
+
+Lists all students that are registerd for this course
 
 ### `client/addRegister[subject, number, studentToken]`
 
@@ -169,6 +174,8 @@ Students may not register for more than 5 courses.
 If a student manages to register for a course, they do not become deregistered.
 
 The nodes do not go down.
+
+No messages between nodes are dropped.
 
 The nodes have knowldege of all of the other nodes IPs at startup.
 
