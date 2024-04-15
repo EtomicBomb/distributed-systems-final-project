@@ -424,18 +424,16 @@ function AuthoritativeStudents() {
 }
 
 function Client() {
-  this.ready = async (node, secret) => {
-    // TODO: figure out how we're going to do this functionality
-  };
-  this.search = async ({ code, title, description, instructor }) => {
-    return await util.callOnHolder({
-      key: token,
-      value: null,
-      gid: "students",
-      hash: util.id.consistentHash,
-      message: [token],
-      service: "students",
-      method: "listRegister",
+  // Set a parameter to null if you're not making any specific search in that
+  // category. This can be implemented with mapreduce or something similar
+  this.search = async ({ subject, code, title, description, instructor }) => {
+    return await util.sendToAll({
+      message: [subject, code, title, description, instructor],
+      service: "courses",
+      method: "search",
+      gid: "courses",
+      exclude: null,
+      subset: null,
     });
   };
   this.studentsTaking = async (token) => {
@@ -638,14 +636,14 @@ function Courses() {
     const details = { service: auth, method: "details" };
     res = await esvs(distribution[auth].async.comm.send([ours], details));
     map = new Map(Object.values(res)[0]);
-
-    console.log("map", map);
-
     locks = new Map(
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }])
     );
     registered = new Map(ours.map((code) => [code, new Set()]));
     // TODO: indexing for search
+    // NOTE: current implementation of search assumes no indexing
+    //   aside from base map.  Will have to update search once indexing
+    //   is implemented
 
     // set state of course node to initialized
     initialized = true;
