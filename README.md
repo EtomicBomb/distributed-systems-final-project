@@ -1,17 +1,29 @@
 ## To-Do
 
-- implement indexing/search
+- implement indexing/search: **Alex**
+- document code **Alex**
 - testing for all endpoints
-  - AuthoritativeCourses
-  - AthoritativeStudents
   - Clients
+    - client.ready
+    - client/search
+    - client.listRegister
+    - client.addRegister
   - Students
+    - students.lock
+    - students.unlock
+    - students.submit
+    - students.listRegister
   - Courses
+    - courses/lock
+    - courses.submit
+    - courses.unlock
+    - courses.search
+    - courses.listRegister
 - deployment on AWS
 - paper
-  - §1, Introduction
-  - §2, Example
-  - §3, 4, 5 Design & Implementation
+  - §1, Introduction: **Ben**
+  - §2, Example: **Ben**
+  - §3, 4, 5 Design & Implementation: **Ben**
   - §6, Evaluation
   - §7, Discussion
   - §8, Related work
