@@ -667,10 +667,31 @@ function Courses() {
     await this.beginIndex();
 
     // null check
+    if (subject === null) {
+      subject = "";
+    }
+    if (code === null) {
+      code = "";
+    }
+    if (title === null) {
+      title = "";
+    }
+    if (description === null) {
+      description = "";
+    }
+    if (instructor === null) {
+      instructor = "";
+    }
+
+    // if code is number, change to string
+    code = code.toString();
 
     // to lowercase
-
-    // change number is string
+    subject = subject.toLowerCase();
+    code = code.toLowerCase();
+    title = title.toLowerCase();
+    description = description.toLowerCase();
+    instructor = instructor.toLowerCase();
 
     // Iterate over each course object in the map
     return Object.values(map).filter((course) => {
