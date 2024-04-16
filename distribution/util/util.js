@@ -171,15 +171,38 @@ function calculateTfidf(courses) {
   let tfidf = new Map(); // courseCode -> map(term -> tf)
   let idf = new Map(); // term -> idf
 
+  // replace punctuations
+  const regex = /[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g;
   // iterate over each course to create tf-idf calculates
   courses.forEach((details, courseCode) => {
-    let subject = details.code.subject.toLowerCase();
-    let number = details.code.number.toLowerCase();
-    let title = details.title.toLowerCase();
-    let description = details.description.toLowerCase();
-    let instructors = details.offerings.flatMap((offering) =>
-      offering.instructors.map((ins) => ins.toLowerCase()),
-    );
+    if (Object.keys(details).length === 0) {
+      // empty course
+      return;
+    }
+
+    let subject =
+      details.code && details.code.subject
+        ? details.code.subject.toLowerCase().replace(regex, "")
+        : "";
+    let number =
+      details.code && details.code.number
+        ? details.code.number.toLowerCase().replace(regex, "")
+        : "";
+    let title = details.title
+      ? details.title.toLowerCase().replace(regex, "")
+      : "";
+    let description = details.description
+      ? details.description.toLowerCase().replace(regex, "")
+      : "";
+    let instructors = details.offerings
+      ? details.offerings.flatMap((offering) =>
+          offering.instructors
+            ? offering.instructors.flatMap((ins) =>
+                ins.toLowerCase().split(" "),
+              )
+            : [],
+        )
+      : [];
 
     // process text: merge title and description, split, stem, remove stop words
     let processedTerms = [
@@ -188,7 +211,6 @@ function calculateTfidf(courses) {
       ...instructors,
       subject,
       number,
-      courseCode.toLowerCase(),
     ];
     processedTerms = processedTerms.filter(
       (word) => !stopwords.stopwords.includes(word),

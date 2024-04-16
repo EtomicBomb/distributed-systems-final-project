@@ -670,6 +670,8 @@ function Courses() {
     // make sure index is ready
     await this.beginIndex();
 
+    // FOR QUERY, MAKE SURE TO LOWER CASE, REMOVE PUNCTUATION, AND SPLIT
+
     // null check
     if (subject === null) {
       subject = "";

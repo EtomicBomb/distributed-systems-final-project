@@ -100,55 +100,100 @@ test("courses1: correctness of idf and tf-idf values", () => {
   console.log("tfidf", tfidf);
   console.log("idf", idf);
 
-  // Expected IDF values for each term
-  // const expectedIDFMap = {
-  //   afri: 0,
-  //   "0001": 0,
-  //   octavia: 0,
-  //   "n.k": 0,
-  //   analytical: 0,
-  //   lenses: 0,
-  //   analytical: 0,
-  //   kidane: 0,
-  //   analytical: 0,
-  //   econ: 0,
-  // };
+  // Expected tf-idf values for each term
+  // Expected tf-idf values for each term
+  const expectedTfidf = new Map([
+    [
+      "AFRI 0001",
+      new Map([
+        ["octavia", 0.14285714285714285],
+        ["n.k", 0.14285714285714285],
+        ["analyt", 0.14285714285714285],
+        ["lens", 0.14285714285714285],
+        ["kidan", 0.14285714285714285],
+        ["afri", 0.14285714285714285],
+        ["0001", 0.08493355598454794],
+      ]),
+    ],
+    [
+      "ECON 0001",
+      new Map([
+        ["cool", 0.16666666666666666],
+        ["pokemon", 0.16666666666666666],
+        ["joe", 0.16666666666666666],
+        ["rogan", 0.16666666666666666],
+        ["econ", 0.16666666666666666],
+        ["0001", 0.09908914864863927],
+      ]),
+    ],
+  ]);
 
-  // // Assert each term's IDF value in each document
-  // Object.keys(expectedIDFMap).forEach((term) => {
-  //   Object.keys(expectedIDFMap[term]).forEach((docIndex) => {
-  //     expect(idfMap[term][docIndex]).toBeCloseTo(
-  //       expectedIDFMap[term][docIndex],
-  //       3,
-  //     ); // Close enough comparison due to floating point errors
-  //   });
-  // });
+  // Expected idf values for each term
+  const expectedIdf = new Map([
+    ["octavia", 1],
+    ["n.k", 1],
+    ["analyt", 1],
+    ["lens", 1],
+    ["kidan", 1],
+    ["afri", 1],
+    ["0001", 0.5945348918918356],
+    ["cool", 1],
+    ["pokemon", 1],
+    ["joe", 1],
+    ["rogan", 1],
+    ["econ", 1],
+  ]);
+
+  // Assert each term's IDF value in each document
+  Object.keys(expectedIdf).forEach((term) => {
+    Object.keys(expectedIdf[term]).forEach((course) => {
+      expect(idf[term][course]).toBeCloseTo(expectedIdf[term][course], 3);
+    });
+  });
+
+  // Assert each term's tf-idf value in each document
+  Object.keys(expectedTfidf).forEach((course) => {
+    Object.keys(expectedIdf[course]).forEach((term) => {
+      expect(tfidf[course][term]).toBeCloseTo(expectedIdf[course][term], 3);
+    });
+  });
 });
 
-// test("should handle empty corpus", () => {
-//   // Empty corpus
-//   const corpus = [];
+test("empty corpus", () => {
+  // Empty corpus
+  const emptyCorpus = new Map();
 
-//   // Calculate IDF values
-//   const idfMap = calculateTFIDF(corpus);
+  // Calculate IDF values
+  const res = util.calculateTfidf(emptyCorpus);
+  const tfidf = res[0];
+  const idf = res[1];
 
-//   // Expect an empty object
-//   expect(idfMap).toEqual({});
-// });
+  // Expect an empty object
+  expect(tfidf.size).toBe(0);
+  expect(idf.size).toBe(0);
+});
 
-// test("should handle documents with no terms", () => {
-//   // Define a sample corpus with empty documents
-//   const corpus = [[], []];
+test("documents with no terms", () => {
+  // sample corpus with empty documents
+  const corpus = new Map(Object.entries({ "AFRI 0001": {} }));
 
-//   // Calculate IDF values
-//   const idfMap = calculateTFIDF(corpus);
+  const res = util.calculateTfidf(corpus);
+  const tfidf = res[0];
+  const idf = res[1];
 
-//   // Expect an empty object
-//   expect(idfMap).toEqual({});
-// });
+  // Expect an empty object
+  expect(tfidf.size).toBe(0);
+  expect(idf.size).toBe(0);
+});
+
 // --------------------------------------------------------------------------
 
 // dummy testing for debugging purposes
 test("debugging, dummy", async () => {
-  // let res = await local.courses.beginIndex();
+  const res = util.calculateTfidf(courses2);
+  const tfidf = res[0];
+  const idf = res[1];
+
+  console.log("tfidf", tfidf);
+  console.log("idf", idf);
 });
