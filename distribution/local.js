@@ -640,24 +640,31 @@ function Courses() {
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),
     );
     registered = new Map(ours.map((code) => [code, new Set()]));
+
     // TODO: indexing for search
     // NOTE: current implementation of search assumes no indexing
     //   aside from base map.  Will have to update search once indexing
     //   is implemented
-    
+
     // set state of course node to initialized
     initialized = true;
     return map.size;
   };
-  /* searches for the course using the node's internal indexes
-     params:
-       - subject: course department
-       - number: course code
-       - title: descriptive name of course
-       - description: partial (or whole) description of course
-       - instructor: name of instructor
-     returns:
-       - map, list of course objs (course code -> description)
+
+  /* 
+  TEMPORARY, WILL UPDATE ONCE INDEXING DONE
+
+
+  searches for the course using the node's internal indexes
+
+  params:
+    - subject: course department
+    - number: course code
+    - title: descriptive name of course
+    - description: partial (or whole) description of course
+    - instructor: name of instructor
+  returns:
+    - map, list of course objs (course code -> description)
   */
   this.search = async ({ subject, code, title, description, instructor }) => {
     // make sure index is ready

@@ -163,10 +163,13 @@ params:
   - courses: map of course subject + code -> course details
 
 return:
-  - map, inverted index of stemmed term -> {freq: n, course: [subject, code]}
+  - map, IDF, terms -> idf
+  - map, TF-IDF, terms -> map({course_code -> tf-idf})
 */
 function createInvertedIdx(courses) {
   let invertedIdx = new Map();
+  let termFreq = new Map();
+  let TfIdf = new Map();
 
   // iterate over each course to create inverted index
   courses.forEach((courseCode, details) => {
@@ -179,16 +182,33 @@ function createInvertedIdx(courses) {
     );
 
     // process text: merge title and description, split, stem, remove stop words
-    titleAndDesc = [
+    let processedTerms = [
       ...title.split(" "),
       ...description.split(" "),
       ...instructors.split(" "),
     ];
-    titleAndDesc = titleAndDesc.filter((word) => !stopwords.includes(word));
-    titleAndDesc = titleAndDesc.map((word) => porterStemmer.stem(word));
+    processedTerms = processedTerms.filter((word) => !stopwords.includes(word));
+    processedTerms = processedTerms.map((word) => porterStemmer.stem(word));
 
     // merge repeat words and map to frequency count and course code
+    let termToFreq = processedTerms.reduce((count, word) => {
+      // update cnt for word
+      let freqUpdate = count.get(word) || 0;
+      freqUpdate++;
+      count.set(word, freqUpdate);
+
+      // add word to inverted index
+      let invIdxUpdate = invertedIdx.get(word) || new Set();
+      invIdxUpdate.add(courseCode);
+      invertedIdx.update(word, invIdxUpdate);
+
+      return count;
+    }, new Map());
   });
+
+  // calculate tf-idf
+
+  // calculate tf-idf
 }
 
 module.exports = {
