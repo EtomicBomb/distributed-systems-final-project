@@ -167,16 +167,16 @@ return:
     - tfidf: map, term -> idf
     - idf: map, courseCode -> map(term -> tf-idf)
 */
-function tfidf(courses) {
+function calculateTfidf(courses) {
   let tfidf = new Map(); // courseCode -> map(term -> tf)
   let idf = new Map(); // term -> idf
 
   // iterate over each course to create tf-idf calculates
-  courses.forEach((courseCode, details) => {
+  courses.forEach((details, courseCode) => {
     let subject = details.code.subject.toLowerCase();
     let number = details.code.number.toLowerCase();
     let title = details.title.toLowerCase();
-    let description = detail.description.toLowerCase();
+    let description = details.description.toLowerCase();
     let instructors = details.offerings.flatMap((offering) =>
       offering.instructors.map((ins) => ins.toLowerCase()),
     );
@@ -185,12 +185,14 @@ function tfidf(courses) {
     let processedTerms = [
       ...title.split(" "),
       ...description.split(" "),
-      ...instructors.split(" "),
+      ...instructors,
       subject,
       number,
       courseCode.toLowerCase(),
     ];
-    processedTerms = processedTerms.filter((word) => !stopwords.includes(word));
+    processedTerms = processedTerms.filter(
+      (word) => !stopwords.stopwords.includes(word),
+    );
     processedTerms = processedTerms.map((word) => porterStemmer.stem(word));
     let tfAddition = 1 / processedTerms.length;
 
@@ -206,7 +208,7 @@ function tfidf(courses) {
       // to calcualte idf, take size of set as c_i, freq of term in doc
       let idfUpdate = idf.get(word) || new Set();
       idfUpdate.add(courseCode);
-      idf.update(word, idfUpdate);
+      idf.set(word, idfUpdate);
 
       return count;
     }, new Map());
@@ -219,10 +221,10 @@ function tfidf(courses) {
   // N = size of courses stored on this node
   // c_i = number of courses term_i appears in
   const N = courses.size;
-  idf.forEach((value, key) => {
-    let c_i = value.size;
+  idf.forEach((cntSet, term) => {
+    let c_i = cntSet.size;
     let idf_i = 1 + Math.log(N / (1 + c_i));
-    idf.set(key, idf_i);
+    idf.set(term, idf_i);
   });
 
   // calculate tf-idf,
@@ -246,6 +248,6 @@ module.exports = {
   getPageContents,
   getUrls,
   id,
-  tfidf,
+  calculateTfidf,
   wire: { createRPC, asyncRPC, toAsync },
 };
