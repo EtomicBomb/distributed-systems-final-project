@@ -157,21 +157,21 @@ function toAsync(func) {
 }
 
 /* 
-creates an inverted index for courses
+calculates tf-idf for all courses stored on a course node
 
 params: 
-  - courses: map of course subject + code -> course details
+  - courses: map of courseCode -> course details
 
 return:
-  - map, IDF, terms -> idf
-  - map, TF-IDF, terms -> map({course_code -> tf-idf})
+  - array, [tfidf, idf], where
+    - tfidf: map, term -> idf
+    - idf: map, courseCode -> map(term -> tf-idf)
 */
-function createInvertedIdx(courses) {
-  let invertedIdx = new Map();
-  let termFreq = new Map();
-  let TfIdf = new Map();
+function tfidf(courses) {
+  let tfidf = new Map(); // courseCode -> map(term -> tf)
+  let idf = new Map(); // term -> idf
 
-  // iterate over each course to create inverted index
+  // iterate over each course to create tf-idf calculates
   courses.forEach((courseCode, details) => {
     let subject = details.code.subject.toLowerCase();
     let number = details.code.number.toLowerCase();
@@ -186,29 +186,54 @@ function createInvertedIdx(courses) {
       ...title.split(" "),
       ...description.split(" "),
       ...instructors.split(" "),
+      subject,
+      number,
+      courseCode.toLowerCase(),
     ];
     processedTerms = processedTerms.filter((word) => !stopwords.includes(word));
     processedTerms = processedTerms.map((word) => porterStemmer.stem(word));
+    let tfAddition = 1 / processedTerms.length;
 
     // merge repeat words and map to frequency count and course code
     let termToFreq = processedTerms.reduce((count, word) => {
-      // update cnt for word
+      // update tf for word
       let freqUpdate = count.get(word) || 0;
-      freqUpdate++;
+      freqUpdate += tfAddition;
       count.set(word, freqUpdate);
 
-      // add word to inverted index
-      let invIdxUpdate = invertedIdx.get(word) || new Set();
-      invIdxUpdate.add(courseCode);
-      invertedIdx.update(word, invIdxUpdate);
+      // update idf mapping count
+      // initialize as term -> set(course1, course2, ...)
+      // to calcualte idf, take size of set as c_i, freq of term in doc
+      let idfUpdate = idf.get(word) || new Set();
+      idfUpdate.add(courseCode);
+      idf.update(word, idfUpdate);
 
       return count;
     }, new Map());
+
+    // set tf map of courseCode -> map(term -> tf)
+    tfidf.set(courseCode, termToFreq);
   });
 
-  // calculate tf-idf
+  // calcualte idf = 1 + log(N / (1 + c_i))
+  // N = size of courses stored on this node
+  // c_i = number of courses term_i appears in
+  const N = courses.size;
+  idf.forEach((value, key) => {
+    let c_i = value.size;
+    let idf_i = 1 + Math.log(N / (1 + c_i));
+    idf.set(key, idf_i);
+  });
 
-  // calculate tf-idf
+  // calculate tf-idf,
+  tfidf.forEach((terms, course) => {
+    terms.forEach((tf, term) => {
+      let termTfIdf = tf * idf.get(term);
+      tfidf.get(course).set(term, termTfIdf);
+    });
+  });
+
+  return [tfidf, idf];
 }
 
 module.exports = {
@@ -221,6 +246,6 @@ module.exports = {
   getPageContents,
   getUrls,
   id,
-  createInvertedIdx,
+  tfidf,
   wire: { createRPC, asyncRPC, toAsync },
 };

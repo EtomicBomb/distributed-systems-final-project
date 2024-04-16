@@ -302,9 +302,14 @@ let courseData = {
 };
 let courses = new Map(Object.entries(courseData));
 
-test("search utils", async () => {
+test("termFreq", async () => {
   // create inverted index from objs
-  let invertedIdx = distribution.util.createInvertedIdx(courses);
+  let tf = distribution.util.termFreq(courses);
+});
+
+test("idf", async () => {
+  // create inverted index from objs
+  let idf = distribution.util.tfidf(courses);
 });
 
 // --------------------------------------------------------------------------
