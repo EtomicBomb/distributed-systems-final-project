@@ -616,16 +616,18 @@ function prerequisiteQualifications(taken, prerequisites) {
 
 // Handles course registration states (list of students, capacity), course search
 function Courses() {
-  let map; // map of course index
+  let coursesMap; // map of course index
   let registered; // map of students registered for each course
   let locks; // map of lock for course registration
   let initialized = false;
+  let tfidf; // tfidf map, term -> idf
+  let idf; // idf: map, courseCode -> map(term -> tf-idf)
 
   // initializes courses index for current node, have to be called first!
   this.beginIndex = async () => {
     // don't index course node is already initialized
     if (initialized) {
-      return map.size;
+      return coursesMap.size;
     }
     const auth = "authoritativeCourses";
     const remote = { service: auth, method: "list" };
@@ -635,38 +637,32 @@ function Courses() {
     const ours = res.get(util.id.getNID(global.nodeConfig));
     const details = { service: auth, method: "details" };
     res = await esvs(distribution[auth].async.comm.send([ours], details));
-    map = new Map(Object.values(res)[0]);
+    coursesMap = new Map(Object.values(res)[0]);
     locks = new Map(
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),
     );
     registered = new Map(ours.map((code) => [code, new Set()]));
 
-    // TODO: indexing for search
-    // NOTE: current implementation of search assumes no indexing
-    //   aside from base map.  Will have to update search once indexing
-    //   is implemented
+    // indices for search
+    [tfidf, idf] = util.calculateTfidf(coursesMap);
 
     // set state of course node to initialized
     initialized = true;
-    return map.size;
+    return coursesMap.size;
   };
 
   /* 
   TEMPORARY, WILL UPDATE ONCE INDEXING DONE
 
-
   searches for the course using the node's internal indexes
 
   params:
-    - subject: course department
-    - number: course code
-    - title: descriptive name of course
-    - description: partial (or whole) description of course
-    - instructor: name of instructor
+    - query: string, search query for the courses
+    
   returns:
     - map, list of course objs (course code -> description)
   */
-  this.search = async ({ subject, code, title, description, instructor }) => {
+  this.search = async (query) => {
     // make sure index is ready
     await this.beginIndex();
 
@@ -700,7 +696,7 @@ function Courses() {
     instructor = instructor.toLowerCase();
 
     // Iterate over each course object in the map
-    return Object.values(map).filter((course) => {
+    return Object.values(coursesMap).filter((course) => {
       // Check if any of the fields match the query
       return (
         // matching the course code and subject
@@ -730,7 +726,7 @@ function Courses() {
   // Attempts to lock this student registration. May fail if the student
   // does not qualify for the course.
   this.lock = async (code, record, token) => {
-    const courseRecord = map.get(code);
+    const courseRecord = coursesMap.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
       throw new Error("you are not qualiafied to take this course");
     }
