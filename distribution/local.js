@@ -445,12 +445,14 @@ function Client() {
 
     if (query == null || query == "") {
       // sort by course code names
+      queryRes = queryRes.sort((a, b) => a[0].localeCompare(b[0]));
     } else {
       // sort by ranking
+      queryRes = queryRes.sort((a, b) => b[1].rank - a[1].rank);
     }
     console.log(queryRes);
 
-    return "something";
+    return queryRes;
   };
   this.studentsTaking = async (token) => {
     return await util.callOnHolder({
@@ -710,7 +712,7 @@ function Courses() {
         return;
       }
 
-      let details = coursesMap.get(doc);
+      let details = { ...coursesMap.get(doc) };
       details.set("rank", rank);
       results.push([doc, details]);
     });
