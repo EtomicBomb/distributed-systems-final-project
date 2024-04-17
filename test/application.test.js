@@ -72,11 +72,22 @@ test(
       result = await local.comm.send(['CSCI 0200'], listStudents(client1));
       expect(result.toSorted()).toEqual(['student-test-taken-csci-0150-1'].toSorted());
 
-//      expect(async () => {
-//    await local.comm.send(['AFRI 0001', 'student-test-semester-8'], register(client0));
-//      }).rejects.toThrow('semester');
+      expect(async () => {
+    await local.comm.send(['AFRI 0001', 'student-test-semester-8'], register(client0));
+      }).rejects.toThrow();
 
-//    await local.comm.send(['AFRI 0001', 'student-test-semester-7'], register(client0));
+    await local.comm.send(['AFRI 0001', 'student-test-semester-7'], register(client0));
+
+      // try to register for more than 5 couress
+    await local.comm.send(['AFRI 0005', 'student-test-taken-nothing-2'], register(client0));
+    await local.comm.send(['AFRI 0090', 'student-test-taken-nothing-2'], register(client0));
+    await local.comm.send(['AFRI 0110C', 'student-test-taken-nothing-2'], register(client0));
+    await local.comm.send(['AFRI 0130', 'student-test-taken-nothing-2'], register(client0));
+    await local.comm.send(['AFRI 0160', 'student-test-taken-nothing-2'], register(client0));
+
+      expect(async () => {
+    await local.comm.send(['AFRI 0205', 'student-test-taken-nothing-2'], register(client0));
+      }).rejects.toThrow();
   }),
   10000,
 );
