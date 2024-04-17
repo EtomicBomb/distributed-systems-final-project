@@ -31,20 +31,30 @@ async function create(count) {
     .map((_, index) => randomStudent(courses, names, index));
   students = Object.fromEntries(students);
   students = {
-    "student-test-0": {
+    "student-test-taken-nothing-1": {
       semester: 0,
       name: "Test",
       taken: [],
     },
-    "student-test-1": {
+    "student-test-taken-nothing-2": {
       semester: 1,
       name: "Test",
-      taken: ["CSCI 0330"],
+      taken: [],
     },
-    "student-test-2": {
+    "student-test-taken-csci-0150-1": {
       semester: 1,
       name: "Test",
-      taken: ["CSCI 1660"],
+      taken: ["CSCI 0150"],
+    },
+    "student-test-semester-7": {
+      semester: 7,
+      name: "Test",
+      taken: [],
+    },
+    "student-test-semester-8": {
+      semester: 8,
+      name: "Test",
+      taken: [],
     },
     ...students,
   };

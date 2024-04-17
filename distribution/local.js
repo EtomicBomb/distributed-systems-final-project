@@ -520,9 +520,7 @@ function Client() {
     });
     await Promise.all([studentsSubmit, coursesSubmit]);
     if (!success) {
-      throw new Error("registration failed", {
-        cause: [studentsLock.reason, coursesLock.reason],
-      });
+      throw new Error(`registration failed: ${studentsLock.reason} ${coursesLock.reason}`);
     }
   };
 }
@@ -556,6 +554,9 @@ function Students() {
   };
   this.getRecord = async (token) => {
     await this.beginIndex();
+      if (!map.has(token)) {
+          throw new Error(`unknown student: ${token}`);
+      }
     return map.get(token);
   };
   this.listTokens = async () => {
@@ -564,10 +565,16 @@ function Students() {
   };
   this.listRegister = async (token) => {
     await this.beginIndex();
+      if (!registered.has(token)) {
+          throw new Error(`unknown student: ${token}`);
+      }
     return [...registered.get(token)];
   };
   this.lock = async (code, token) => {
     await this.beginIndex();
+      if (!registered.has(token)) {
+          throw new Error(`unknown student: ${token}`);
+      }
     const alreadyRegistered =
       locks.get(token).codes.size + registered.get(token).size;
     if (alreadyRegistered >= 5) {
@@ -588,6 +595,9 @@ function Students() {
   };
   this.unlock = async (code, lock, token) => {
     await this.beginIndex();
+      if (!locks.has(token)) {
+          return;
+      }
     locks.get(token).locks.delete(lock);
     locks.get(token).codes.delete(code);
   };
@@ -720,6 +730,9 @@ function Courses() {
   // lists all students that are registered for this course
   this.listRegister = async (code) => {
     await this.beginIndex();
+      if (!registered.has(code)) {
+          throw new Error(`cannot find course: ${code}`);
+      }
     return [...registered.get(code)];
   };
 
@@ -749,6 +762,9 @@ function Courses() {
   // removes the registration lock, because one of the checks failed.
   this.unlock = async (code, lock, token) => {
     await this.beginIndex();
+      if (!locks.has(code)) {
+          return;
+      }
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
   };

@@ -3,6 +3,83 @@ const { createGroup } = require("../distribution/all");
 const distribution = require("../distribution");
 const local = distribution.local.async;
 
+test(
+  "test registration main",
+  () => setup({ client: 2, students: 3, courses: 3 }, async (gidNodes) => {
+    const [client0, client1] = gidNodes.client; 
+      const register = (node) => ({
+        service: "client",
+        method: "register",
+        node,
+      });
+      const listCourses = (node) => ({
+        service: "client",
+        method: "studentsTaking",
+        node,
+      });
+      const listStudents = (node) => ({
+        service: "client",
+        method: "coursesTaking",
+        node,
+      });
+    let result;
+
+    await local.comm.send(['CSCI 0170', 'student-test-taken-nothing-1'], register(client1));
+
+    // submit same registration twice
+      expect(async () => {
+    await local.comm.send(['CSCI 0170', 'student-test-taken-nothing-1'], register(client1));
+      }).rejects.toThrow();
+
+    // submit same registration, on different node
+      expect(async () => {
+    await local.comm.send(['CSCI 0170', 'student-test-taken-nothing-1'], register(client0));
+      }).rejects.toThrow();
+
+    await local.comm.send(['CSCI 0150', 'student-test-taken-nothing-1'], register(client0));
+
+      result = await local.comm.send(['student-test-taken-nothing-1'], listCourses(client1));
+      expect(result.toSorted()).toEqual(['CSCI 0150', 'CSCI 0170'].toSorted());
+
+      result = await local.comm.send(['student-test-taken-nothing-1'], listCourses(client0));
+      expect(result.toSorted()).toEqual(['CSCI 0150', 'CSCI 0170'].toSorted());
+
+      // see if the student is there
+      result = await local.comm.send(['CSCI 0150'], listStudents(client1));
+      expect(result.toSorted()).toEqual(['student-test-taken-nothing-1'].toSorted());
+
+      result = await local.comm.send(['CSCI 0170'], listStudents(client0));
+      expect(result.toSorted()).toEqual(['student-test-taken-nothing-1'].toSorted());
+
+      // not in the system yet
+      result = await local.comm.send(['CSCI 0200'], listStudents(client0));
+      expect(result.toSorted()).toEqual([].toSorted());
+
+      // no prerequisites
+      expect(async () => {
+    await local.comm.send(['CSCI 0200', 'student-test-taken-nothing-1'], register(client0));
+      }).rejects.toThrow();
+
+      result = await local.comm.send(['CSCI 0200'], listStudents(client0));
+      expect(result.toSorted()).toEqual([].toSorted());
+
+      // register a student with the right prereqs
+    await local.comm.send(['CSCI 0200', 'student-test-taken-csci-0150-1'], register(client0));
+
+      result = await local.comm.send(['CSCI 0200'], listStudents(client1));
+      expect(result.toSorted()).toEqual(['student-test-taken-csci-0150-1'].toSorted());
+
+      result = await local.comm.send(['CSCI 0200'], listStudents(client1));
+      expect(result.toSorted()).toEqual(['student-test-taken-csci-0150-1'].toSorted());
+
+//      expect(async () => {
+//    await local.comm.send(['AFRI 0001', 'student-test-semester-8'], register(client0));
+//      }).rejects.toThrow('semester');
+
+//    await local.comm.send(['AFRI 0001', 'student-test-semester-7'], register(client0));
+  }),
+  10000,
+);
 test("authoritativeCourses list contains the courses", async () => {
   const list = await local.authoritativeCourses.list();
   expect(list).toContain("CSCI 1380");
@@ -222,8 +299,3 @@ test(
   10000,
 );
 
-test(
-  "test registration main",
-  () => setup({ client: 2, students: 3, courses: 3 }, async (gidNodes) => {}),
-  10000,
-);
