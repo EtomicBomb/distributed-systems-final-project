@@ -432,10 +432,9 @@ async function esvs(promise) {
 }
 
 function Client() {
-  // Set a parameter to null if you're not making any specific search in that
-  // category. This can be implemented with mapreduce or something similar
+  // query term, if query is null, returns all courses
   this.search = async ({ query }) => {
-    return await util.sendToAll({
+    let queryRes = await util.sendToAll({
       message: [query],
       service: "courses",
       method: "search",
@@ -443,6 +442,17 @@ function Client() {
       exclude: null,
       subset: null,
     });
+
+    if (query == null || query == "") {
+      // sort by course code names
+      queryRes = queryRes.sort((a, b) => a[0].localeCompare(b[0]));
+    } else {
+      // sort by ranking
+      queryRes = queryRes.sort((a, b) => b[1].rank - a[1].rank);
+    }
+    console.log(queryRes);
+
+    return queryRes;
   };
   this.studentsTaking = async (token) => {
     return await util.callOnHolder({
@@ -673,23 +683,23 @@ function Courses() {
   };
 
   /* 
-  TEMPORARY, WILL UPDATE ONCE INDEXING DONE
-
-  searches for the course using the node's internal indexes
+  searches for the course using the node's internal indexes.  if query is null
+  or empty query, return all courses
 
   params:
     - query: string, search query for the courses
     
   returns:
-    - map, list of course objs (course code -> description)
+    - arr, list of courseCodes mapped to their rank and course details 
+        [[course code, {...description, rank: rankVal} ** this is a map], ...]
   */
   this.search = async (query) => {
     // make sure index is ready
     await this.beginIndex();
 
-    // null check
-    if (query === null) {
-      query = "";
+    // if null or empty, return all courses
+    if (query === null || query === "") {
+      return coursesMap;
     }
     // preprocess query - lower case, remove punctuation, split
     query = query.toLowerCase().replace(regex, "").split(" ");
@@ -700,31 +710,24 @@ function Courses() {
     let tf = util.calculateTf(processedQuery, null, null);
 
     // calculate query tfidf
-    const queryVec = [];
-    const docVecs = new Map(); // doc -> arr of tf-idf in same order of queryVec
-    tf.forEach((val, term) => {
-      if (!idf.has(term)) {
-        return;
-      }
-      let curTfidf = val * idf.get(term);
-      // create query and docVecs to calculate cos similarity
-      queryVec.push(curTfidf);
-      tfidf.forEach((termsToTfidf, courseCode) => {
-        let vecUpdate = docVecs.get(courseCode) || [];
-        let docTfidf = termsToTfidf.get(term) || 0;
-        vecUpdate.push(docTfidf);
-        docVecs.set(vecUpdate, term);
-      });
-    });
+    let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, tfidf);
 
     // calcualte query-document similarity
-    docVecs.forEach((docVec, term) => {
+    let results = [];
+    docVecs.forEach((docVec, doc) => {
       let rank = util.cosinesim(docVec, queryVec);
 
-      // TODO: implement way to keep track of docs rankings
+      // cutoff for docs not returned
+      if (rank < 0.5) {
+        return;
+      }
+
+      let details = { ...coursesMap.get(doc) };
+      details.set("rank", rank);
+      results.push([doc, details]);
     });
 
-    return null;
+    return results;
   };
 
   // lists all students that are registered for this course

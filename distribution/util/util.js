@@ -313,6 +313,10 @@ function cosinesim(A, B) {
     return 0;
   }
 
+  // normalize A and B
+  A = normalizeVector(A);
+  B = normalizeVector(B);
+
   var dotproduct = 0;
   var mA = 0;
   var mB = 0;
@@ -333,6 +337,66 @@ function cosinesim(A, B) {
   return similarity;
 }
 
+/*
+Normalize a vector
+
+params:
+  - vector to normalize 
+
+return:
+  - arr, the normalized vector
+*/
+function normalizeVector(vector) {
+  if (vector.length == 0) {
+    return [];
+  }
+
+  const magnitude = Math.sqrt(vector.reduce((acc, val) => acc + val * val, 0));
+  if (magnitude === 0) {
+    return vector.slice(); // Return a copy of the original vector if the magnitude is 0 to avoid division by zero
+  }
+  return vector.map((val) => val / magnitude);
+}
+
+/*
+Calculate query tfidf wrt current node's document's tfidf and idf maps
+
+params:
+  - tf: map, term -> tf of query
+  - idf: map, term -> idf of all docs, should not be empty
+  - tfidf: map, courseCode -> map(term -> tf-idf) of all docs, should not be empty
+
+return:
+  - arr, length 2, first element is the tfidf of query, second element is 
+      map of doc to tf-tdf of each word in the query, in same order as the
+      first element
+*/
+function calculateQueryTfidf(tf, idf, tfidf) {
+  const queryVec = []; // list of tf-idf of query
+  const docVecs = new Map(); // doc -> arr of tf-idf in same order of queryVec
+
+  if (idf == null || tfidf == null || idf.size == 0 || tfidf.size == 0) {
+    return [queryVec, docVecs];
+  }
+
+  tf.forEach((val, term) => {
+    if (!idf.has(term)) {
+      return;
+    }
+    let curTfidf = val * idf.get(term);
+    // create query and docVecs to calculate cos similarity
+    queryVec.push(curTfidf);
+    tfidf.forEach((termsToTfidf, courseCode) => {
+      let vecUpdate = docVecs.get(courseCode) || [];
+      let docTfidf = termsToTfidf.get(term) || 0;
+      vecUpdate.push(docTfidf);
+      docVecs.set(term, vecUpdate);
+    });
+  });
+
+  return [queryVec, docVecs];
+}
+
 module.exports = {
   serialize: serialization.serialize,
   deserialize: serialization.deserialize,
@@ -345,7 +409,9 @@ module.exports = {
   id,
   calculateTfidf,
   calculateTf,
+  calculateQueryTfidf,
   stemAndRemoveStopWords,
   cosinesim,
+  normalizeVector,
   wire: { createRPC, asyncRPC, toAsync },
 };

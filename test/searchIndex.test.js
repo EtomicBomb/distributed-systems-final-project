@@ -281,6 +281,154 @@ test("cosinesim, null", () => {
   expect(res).toBe(0);
 });
 
+test("normalizeVector, correctness", () => {
+  let vec = [1, 1];
+  const expected = [0.7071067811865475, 0.7071067811865475];
+
+  let res = util.normalizeVector(vec);
+  expect(res).toEqual(expected);
+});
+
+test("normalizeVector, zero vector", () => {
+  let vec = [0, 0];
+  const expected = [0, 0];
+
+  let res = util.normalizeVector(vec);
+  expect(res).toEqual(expected);
+
+  res = util.normalizeVector([]);
+  expect(res.length).toBe(0);
+});
+
+test("calculateQueryTfidf, correctness", () => {
+  const tf = new Map(
+    Object.entries({
+      machine: 0.5,
+      learning: 0.5,
+    }),
+  );
+  const idf = new Map(
+    Object.entries({
+      machine: 1.4,
+      learning: 2.1,
+      teaches: 2.1,
+      how: 2.1,
+      to: 2.1,
+      learn: 2.1,
+      translation: 2.1,
+      is: 1.4,
+      my: 2.1,
+      favorite: 2.1,
+      subject: 2.1,
+      term: 2.1,
+      frequency: 2.1,
+      and: 2.1,
+      inverse: 2.1,
+      document: 2.1,
+      important: 2.1,
+    }),
+  );
+  const tfidf = new Map(
+    Object.entries({
+      doc1: new Map(
+        Object.entries({
+          machine: 0.4,
+          learning: 0.3,
+          teaches: 0.3,
+          how: 0.3,
+          to: 0.3,
+          learn: 0.3,
+        }),
+      ),
+      doc2: new Map(
+        Object.entries({
+          machine: 0.23,
+          translation: 0.35,
+          is: 0.23,
+          my: 0.35,
+          favorite: 0.35,
+          subject: 0.35,
+        }),
+      ),
+      doc3: new Map(
+        Object.entries({
+          term: 0.26,
+          frequency: 0.52,
+          and: 0.26,
+          inverse: 0.26,
+          document: 0.26,
+          is: 0.18,
+          important: 0.26,
+        }),
+      ),
+    }),
+  );
+
+  const queryVecExpected = [0.7, 1.05];
+  const docVecsExpected = new Map(
+    Object.entries({
+      doc1: [0.4, 0.3],
+      doc2: [0.23, 0],
+      doc3: [0.0, 0.0],
+    }),
+  );
+
+  let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, tfidf);
+
+  queryVec.forEach((val, i) => {
+    expect(val).toBeCloseTo(queryVecExpected[i], 3);
+  });
+
+  // Assert each term's tf-idf value in each document
+  Object.keys(docVecs).forEach((doc) => {
+    Object.keys(docVecs[doc]).forEach((val, i) => {
+      expect(val).toBeCloseTo(docVecsExpected[doc][i], 3);
+    });
+  });
+});
+
+test("calulateQueryTfidf, empty query", () => {
+  let [queryVec, docVecs] = util.calculateQueryTfidf([], null, null);
+
+  expect(queryVec.length).toBe(0);
+  expect(docVecs.size).toBe(0);
+});
+
+test("calulateQueryTfidf, empty tfidf and idf", () => {
+  const tf = new Map(
+    Object.entries({
+      machine: 0.5,
+      learning: 0.5,
+    }),
+  );
+  const idf = new Map(
+    Object.entries({
+      machine: 1.4,
+      learning: 2.1,
+    }),
+  );
+  const tfidf = new Map(
+    Object.entries({
+      doc1: new Map(
+        Object.entries({
+          machine: 0.4,
+        }),
+      ),
+    }),
+  );
+  let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, new Map());
+  expect(queryVec.length).toBe(0);
+  expect(docVecs.size).toBe(0);
+
+  [queryVec, docVecs] = util.calculateQueryTfidf(tf, new Map(), tfidf);
+  expect(queryVec.length).toBe(0);
+  expect(docVecs.size).toBe(0);
+
+  [queryVec, docVecs] = util.calculateQueryTfidf(tf, new Map(), new Map());
+  expect(queryVec.length).toBe(0);
+  expect(docVecs.size).toBe(0);
+});
+
 // --------------------------------------------------------------------------
 
 // dummy testing for debugging purposes
