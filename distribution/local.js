@@ -528,7 +528,7 @@ function Client() {
       service: "courses",
       method: success ? "submit" : "unlock",
     });
-    await Promise.all([studentsSubmit, coursesSubmit]);
+    await Promise.allSettled([studentsSubmit, coursesSubmit]);
     if (!success) {
       throw new Error(
         `registration failed: ${studentsLock.reason} ${coursesLock.reason}`,
@@ -615,8 +615,8 @@ function Students() {
   };
   this.submit = async (code, lock, token) => {
     await this.beginIndex();
-    if (!locks.get(token).locks.has(lock)) {
-      throw new Error("we do not have a lock for this course");
+    if (!locks.has(token)) {
+      return;
     }
     locks.get(token).locks.delete(lock);
     locks.get(token).codes.delete(code);
@@ -777,8 +777,8 @@ function Courses() {
   // submits the registration; never fails if you submit the right token.
   this.submit = async (code, lock, token) => {
     await this.beginIndex();
-    if (!locks.get(code).locks.has(lock)) {
-      throw new Error("we do not have a lock for this course");
+    if (!locks.has(code)) {
+      return;
     }
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
