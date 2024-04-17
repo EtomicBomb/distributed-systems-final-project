@@ -31,15 +31,16 @@ test("authoritativeStudents basic", async () => {
   expect(detail).toHaveProperty("taken");
 });
 
-async function beginIndex(gidNodes, service) {
-  await Promise.all(
-    gidNodes.get(service).map((node) => {
-      return local.comm.send([], { service, method: "beginIndex", node });
-    }),
-  );
-}
+//async function beginIndex(gidNodes, service) {
+//  await Promise.all(
+//    gidNodes.get(service).map((node) => {
+//      return local.comm.send([], { service, method: "beginIndex", node });
+//    }),
+//  );
+//}
 
 async function setup(gidCounts, job) {
+    jest.resetModules();
   gidCounts = {
     ...gidCounts,
     authoritativeStudents: 1,
@@ -63,8 +64,8 @@ async function setup(gidCounts, job) {
   await Promise.all(
     [...gidNodes.entries()].map(([gid, nodes]) => createGroup({ gid }, nodes)),
   );
-  await beginIndex(gidNodes, "students");
-  await beginIndex(gidNodes, "courses");
+//  await beginIndex(gidNodes, "students");
+//  await beginIndex(gidNodes, "courses");
   const result = await job(Object.fromEntries([...gidNodes.entries()]));
   const stop = { service: "status", method: "stop" };
   await Promise.all(
