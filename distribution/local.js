@@ -434,9 +434,9 @@ async function esvs(promise) {
 function Client() {
   // Set a parameter to null if you're not making any specific search in that
   // category. This can be implemented with mapreduce or something similar
-  this.search = async ({ subject, code, title, description, instructor }) => {
+  this.search = async ({ query }) => {
     return await util.sendToAll({
-      message: [subject, code, title, description, instructor],
+      message: [query],
       service: "courses",
       method: "search",
       gid: "courses",
@@ -620,8 +620,9 @@ function Courses() {
   let registered; // map of students registered for each course
   let locks; // map of lock for course registration
   let initialized = false;
-  let tfidf; // tfidf map, term -> idf
-  let idf; // idf: map, courseCode -> map(term -> tf-idf)
+  let tfidf; // tfidf map, courseCode -> map(term -> tf-idf)
+  let idf; // idf: map, term -> idf
+  const regex = /[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g;
 
   // initializes courses index for current node, have to be called first!
   this.beginIndex = async () => {
@@ -666,56 +667,44 @@ function Courses() {
     // make sure index is ready
     await this.beginIndex();
 
-    // FOR QUERY, MAKE SURE TO LOWER CASE, REMOVE PUNCTUATION, AND SPLIT
-
     // null check
-    if (subject === null) {
-      subject = "";
+    if (query === null) {
+      query = "";
     }
-    if (code === null) {
-      code = "";
-    }
-    if (title === null) {
-      title = "";
-    }
-    if (description === null) {
-      description = "";
-    }
-    if (instructor === null) {
-      instructor = "";
-    }
+    // preprocess query - lower case, remove punctuation, split
+    query = query.toLowerCase().replace(regex, "").split(" ");
+    // stem and remove stop words
+    let processedQuery = util.stemAndRemoveStopWords(query);
 
-    // if code is number, change to string
-    code = code.toString();
+    // calculate query tf
+    let tf = util.calculateTf(processedQuery, null, null);
 
-    // to lowercase
-    subject = subject.toLowerCase();
-    code = code.toLowerCase();
-    title = title.toLowerCase();
-    description = description.toLowerCase();
-    instructor = instructor.toLowerCase();
-
-    // Iterate over each course object in the map
-    return Object.values(coursesMap).filter((course) => {
-      // Check if any of the fields match the query
-      return (
-        // matching the course code and subject
-        (course.code.subject.toLowerCase().includes(subject) &&
-          course.code.number.includes(code)) ||
-        // matching title
-        course.title.toLowerCase().includes(title.toLowerCase()) ||
-        // matching course description
-        (course.description &&
-          course.description.toLowerCase().includes(description)) ||
-        // matching instructor
-        (course.offerings &&
-          course.offerings.some((offering) =>
-            offering.instructors.some((instructors) =>
-              instructors.toLowerCase().includes(instructor),
-            ),
-          ))
-      );
+    // calculate query tfidf
+    const queryVec = [];
+    const docVecs = new Map(); // doc -> arr of tf-idf in same order of queryVec
+    tf.forEach((val, term) => {
+      if (!idf.has(term)) {
+        return;
+      }
+      let curTfidf = val * idf.get(term);
+      // create query and docVecs to calculate cos similarity
+      queryVec.push(curTfidf);
+      tfidf.forEach((termsToTfidf, courseCode) => {
+        let vecUpdate = docVecs.get(courseCode) || [];
+        let docTfidf = termsToTfidf.get(term) || 0;
+        vecUpdate.push(docTfidf);
+        docVecs.set(vecUpdate, term);
+      });
     });
+
+    // calcualte query-document similarity
+    docVecs.forEach((docVec, term) => {
+      let rank = util.cosinesim(docVec, queryVec);
+
+      // TODO: implement way to keep track of docs rankings
+    });
+
+    return null;
   };
 
   // lists all students that are registered for this course

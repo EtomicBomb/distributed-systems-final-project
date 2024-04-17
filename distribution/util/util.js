@@ -164,8 +164,8 @@ params:
 
 return:
   - array, [tfidf, idf], where
-    - tfidf: map, term -> idf
-    - idf: map, courseCode -> map(term -> tf-idf)
+    - tfidf: map, courseCode -> map(term -> tf-idf)
+    - idf: map, term -> idf
 */
 function calculateTfidf(courses) {
   let tfidf = new Map(); // courseCode -> map(term -> tf)
@@ -205,36 +205,16 @@ function calculateTfidf(courses) {
       : [];
 
     // process text: merge title and description, split, stem, remove stop words
-    let processedTerms = [
+    let splitTerms = [
       ...title.split(" "),
       ...description.split(" "),
       ...instructors,
       subject,
       number,
     ];
-    processedTerms = processedTerms.filter(
-      (word) => !stopwords.stopwords.includes(word),
-    );
-    processedTerms = processedTerms.map((word) => porterStemmer.stem(word));
-    let tfAddition = 1 / processedTerms.length;
-
+    let processedTerms = stemAndRemoveStopWords(splitTerms);
     // merge repeat words and map to frequency count and course code
-    let termToFreq = processedTerms.reduce((count, word) => {
-      // update tf for word
-      let freqUpdate = count.get(word) || 0;
-      freqUpdate += tfAddition;
-      count.set(word, freqUpdate);
-
-      // update idf mapping count
-      // initialize as term -> set(course1, course2, ...)
-      // to calcualte idf, take size of set as c_i, freq of term in doc
-      let idfUpdate = idf.get(word) || new Set();
-      idfUpdate.add(courseCode);
-      idf.set(word, idfUpdate);
-
-      return count;
-    }, new Map());
-
+    let termToFreq = calculateTf(processedTerms, idf, courseCode);
     // set tf map of courseCode -> map(term -> tf)
     tfidf.set(courseCode, termToFreq);
   });
@@ -260,6 +240,99 @@ function calculateTfidf(courses) {
   return [tfidf, idf];
 }
 
+/*
+Calculates the tf of all words in a document
+
+params:
+  - processedTerms: arr, list of all words in document, already preprocessed
+  - idf: [optional], map, term -> set(docments), used to calculate idf.  Set to 
+      null if not needed
+  - courseCode: [optional], string, subject + code of a course, used in 
+      conjunction w/ idf as optimization in tf-idf calculations.  Set to null if
+      not needed.
+
+return:
+  - map, term -> tf
+*/
+function calculateTf(processedTerms, idf, courseCode) {
+  let tfAddition = 1 / processedTerms.length;
+
+  // merge repeat words and map to frequency count and course code
+  let termToFreq = processedTerms.reduce((count, word) => {
+    // update tf for word
+    let freqUpdate = count.get(word) || 0;
+    freqUpdate += tfAddition;
+    count.set(word, freqUpdate);
+
+    // update idf mapping count
+    // initialize as term -> set(course1, course2, ...)
+    // to calcualte idf, take size of set as c_i, freq of term in doc
+    if (idf !== null && courseCode !== null) {
+      let idfUpdate = idf.get(word) || new Set();
+      idfUpdate.add(courseCode);
+      idf.set(word, idfUpdate);
+    }
+
+    return count;
+  }, new Map());
+
+  return termToFreq;
+}
+
+/*
+Stems and removes stop words from a list of words
+
+param:
+  - words: arr, list of strings
+
+return:
+  - arr, list of strings after stemming and removing stop words
+*/
+function stemAndRemoveStopWords(words) {
+  if (!words || !words.length) {
+    return [];
+  }
+  words = words.filter((word) => !stopwords.stopwords.includes(word));
+  words = words.map((word) => porterStemmer.stem(word));
+  return words;
+}
+
+/*
+Calculates cos similarity of two arrays
+**credit: https://stackoverflow.com/questions/51362252/javascript-cosine-similarity-function
+
+params:
+  - A, list of floats of length n
+  - B, list of floats of length n
+
+return:
+  - float, cos similiarity of the two arrays
+*/
+function cosinesim(A, B) {
+  if (A.length != B.length || A.length == 0 || B.length == 0) {
+    return 0;
+  }
+
+  var dotproduct = 0;
+  var mA = 0;
+  var mB = 0;
+
+  for (var i = 0; i < A.length; i++) {
+    dotproduct += A[i] * B[i];
+    mA += A[i] * A[i];
+    mB += B[i] * B[i];
+  }
+
+  let denom = Math.sqrt(mA) * Math.sqrt(mB);
+  // check for 0 denom
+  if (denom == 0) {
+    return 0;
+  }
+  var similarity = dotproduct / denom;
+
+  return similarity;
+}
+
 module.exports = {
   serialize: serialization.serialize,
   deserialize: serialization.deserialize,
@@ -271,5 +344,8 @@ module.exports = {
   getUrls,
   id,
   calculateTfidf,
+  calculateTf,
+  stemAndRemoveStopWords,
+  cosinesim,
   wire: { createRPC, asyncRPC, toAsync },
 };

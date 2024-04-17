@@ -97,10 +97,6 @@ test("courses1: correctness of idf and tf-idf values", () => {
   const tfidf = res[0];
   const idf = res[1];
 
-  console.log("tfidf", tfidf);
-  console.log("idf", idf);
-
-  // Expected tf-idf values for each term
   // Expected tf-idf values for each term
   const expectedTfidf = new Map([
     [
@@ -186,6 +182,105 @@ test("documents with no terms", () => {
   expect(idf.size).toBe(0);
 });
 
+test("stemAndRemoveStopWords, correctness", () => {
+  const words = ["pokemon", "the", "i", "lenses"];
+  const wordsExpected = ["pokemon", "lens"];
+
+  let res = util.stemAndRemoveStopWords(words);
+
+  expect(res).toEqual(wordsExpected);
+});
+
+test("stemAndRemoveStopWords, empty", () => {
+  let res = util.stemAndRemoveStopWords([]);
+
+  expect(res.length).toBe(0);
+});
+
+test("calculateTf, correctness, idf included", () => {
+  const processedTerms = ["crazy", "train", "rice"];
+  const idfPartial = new Map();
+  const courseCode = "sample";
+
+  const tfExpected = new Map(
+    Object.entries({
+      crazy: 0.3333333333,
+      train: 0.333333333,
+      rice: 0.3333333333,
+    }),
+  );
+  const idfPartialExpected = new Map(
+    Object.entries({
+      crazy: new Set(["sample"]),
+      train: new Set(["sample"]),
+      rice: new Set(["sample"]),
+    }),
+  );
+
+  let res = util.calculateTf(processedTerms, idfPartial, courseCode);
+
+  res.forEach((tf, term) => {
+    expect(tf).toBeCloseTo(tfExpected.get(term), 3);
+  });
+
+  expect(idfPartial.size).toBe(3);
+
+  idfPartial.forEach((val, term) => {
+    expect(idfPartial.get(term).size).toBe(1);
+    expect(idfPartial.get(term).has("sample")).toBeTruthy();
+  });
+});
+
+test("calculateTf, correctness, no idf included", () => {
+  const processedTerms = ["crazy", "train", "train"];
+
+  const tfExpected = new Map(
+    Object.entries({
+      crazy: 0.3333333333,
+      train: 0.666666666,
+    }),
+  );
+
+  let res = util.calculateTf(processedTerms, null, null);
+
+  res.forEach((tf, term) => {
+    expect(tf).toBeCloseTo(tfExpected.get(term), 3);
+  });
+});
+
+test("calculateTf, correctness, empty processed terms", () => {
+  let res = util.calculateTf([], null, null);
+
+  expect(res.size).toBe(0);
+});
+
+test("cosinesim, correctness", () => {
+  let array1 = [1, 0, 0, 1];
+  let array2 = [1, 0, 0, 0];
+
+  let res = util.cosinesim(array1, array2);
+
+  expect(res).toBeCloseTo(0.7071067811865475, 3);
+});
+
+test("cosinesim, correctness, 0 denom", () => {
+  let array1 = [1, 0, 0, 1];
+  let array2 = [0, 0, 0, 0];
+
+  let res = util.cosinesim(array1, array2);
+
+  expect(res).toBe(0);
+});
+
+test("cosinesim, null", () => {
+  let array1 = [];
+  let array2 = [];
+
+  let res = util.cosinesim(array1, array2);
+
+  expect(res).toBe(0);
+});
+
 // --------------------------------------------------------------------------
 
 // dummy testing for debugging purposes
@@ -194,6 +289,6 @@ test("debugging, dummy", async () => {
   const tfidf = res[0];
   const idf = res[1];
 
-  console.log("tfidf", tfidf);
-  console.log("idf", idf);
+  // console.log("tfidf", tfidf);
+  // console.log("idf", idf);
 });
