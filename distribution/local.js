@@ -531,7 +531,11 @@ function Students() {
   let map;
   let locks;
   let registered;
+  let indexed = false;
   this.beginIndex = async () => {
+    if (indexed) {
+      return map.size;
+    }
     const auth = "authoritativeStudents";
     const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
@@ -547,19 +551,23 @@ function Students() {
       tokens.map((token) => [token, { locks: new Set(), codes: new Set() }]),
     );
     registered = new Map(tokens.map((token) => [token, new Set()]));
+    indexed = true;
     return map.size;
   };
   this.getRecord = async (token) => {
+    await this.beginIndex();
     return map.get(token);
   };
   this.listTokens = async () => {
+    await this.beginIndex();
     return [...map.keys()];
   };
   this.listRegister = async (token) => {
-    console.trace(registered.get(token), token);
+    await this.beginIndex();
     return [...registered.get(token)];
   };
   this.lock = async (code, token) => {
+    await this.beginIndex();
     const alreadyRegistered =
       locks.get(token).codes.size + registered.get(token).size;
     if (alreadyRegistered >= 5) {
@@ -579,10 +587,12 @@ function Students() {
     return lock;
   };
   this.unlock = async (code, lock, token) => {
+    await this.beginIndex();
     locks.get(token).locks.delete(lock);
     locks.get(token).codes.delete(code);
   };
   this.submit = async (code, lock, token) => {
+    await this.beginIndex();
     if (!locks.get(token).locks.has(lock)) {
       throw new Error("we do not have a lock for this course");
     }
@@ -709,12 +719,14 @@ function Courses() {
 
   // lists all students that are registered for this course
   this.listRegister = async (code) => {
+    await this.beginIndex();
     return [...registered.get(code)];
   };
 
   // Attempts to lock this student registration. May fail if the student
   // does not qualify for the course.
   this.lock = async (code, record, token) => {
+    await this.beginIndex();
     const courseRecord = coursesMap.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
       throw new Error("you are not qualiafied to take this course");
@@ -736,12 +748,14 @@ function Courses() {
 
   // removes the registration lock, because one of the checks failed.
   this.unlock = async (code, lock, token) => {
+    await this.beginIndex();
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
   };
 
   // submits the registration; never fails if you submit the right token.
   this.submit = async (code, lock, token) => {
+    await this.beginIndex();
     if (!locks.get(code).locks.has(lock)) {
       throw new Error("we do not have a lock for this course");
     }
