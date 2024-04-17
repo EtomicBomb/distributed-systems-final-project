@@ -443,6 +443,11 @@ function Client() {
       subset: null,
     });
 
+    if (query == null || query == "") {
+      // sort by course code names
+    } else {
+      // sort by ranking
+    }
     console.log(queryRes);
 
     return "something";
@@ -663,8 +668,8 @@ function Courses() {
     - query: string, search query for the courses
     
   returns:
-    - map, list of courseCodes mapped to their rank and course details 
-        (course code -> {...description, rank: rankVal} ** this is a map
+    - arr, list of courseCodes mapped to their rank and course details 
+        [[course code, {...description, rank: rankVal} ** this is a map], ...]
   */
   this.search = async (query) => {
     // make sure index is ready
@@ -686,7 +691,7 @@ function Courses() {
     let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, tfidf);
 
     // calcualte query-document similarity
-    let results = new Map();
+    let results = [];
     docVecs.forEach((docVec, doc) => {
       let rank = util.cosinesim(docVec, queryVec);
 
@@ -697,7 +702,7 @@ function Courses() {
 
       let details = coursesMap.get(doc);
       details.set("rank", rank);
-      results.set(doc, details);
+      results.push([doc, details]);
     });
 
     return results;
