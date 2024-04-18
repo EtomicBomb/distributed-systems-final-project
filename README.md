@@ -12,24 +12,24 @@
     - students.lock: **Ethan**
     - students.unlock: **Ethan**
     - students.submit: **Ethan**
-    - students.listRegister
+    - students.listRegister **Ethan**
   - Courses
     - courses/lock: **Ethan**
     - courses.submit: **Ethan**
     - courses.unlock: **Ethan**
     - courses.search: **Alex**
     - courses.listRegister: **Ethan**
-- deployment on AWS
+- deployment on AWS **Alex, Ben, Ethan**
 - paper
   - §1, Introduction: **Ben**
   - §2, Example: **Ben**
   - §3, 4, 5 Design & Implementation: **Ben**
-  - §6, Evaluation
-  - §7, Discussion
-  - §8, Related work
-  - §9, Conclusion
-- frontend 
-- poster
+  - §6, Evaluation **Ben**
+  - §7, Discussion **Ben**
+  - §8, Related work **Ben**
+  - §9, Conclusion **Ben**
+- frontend **Alex**
+- poster **Alex, Ben, Ethan**
 
 # Architecture
 
