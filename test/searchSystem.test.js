@@ -2,6 +2,7 @@ global.nodeConfig = { ip: "127.0.0.1", port: 7070 };
 const { createGroup } = require("../distribution/all");
 const distribution = require("../distribution");
 const local = distribution.local.async;
+const fs = require("fs");
 
 async function setup(gidCounts, job) {
   jest.resetModules();
@@ -49,9 +50,17 @@ test(
         node,
       });
 
-      let res = await local.comm.send(["CSCI 0170"], search(client0));
+      let res = await local.comm.send([null, null, "Csci"], search(client0));
 
-      console.log(res);
+      const filePath = "output.txt";
+      fs.writeFile(filePath, JSON.stringify(res), (err) => {
+        if (err) {
+          console.error("Error writing to file:", err);
+          return;
+        }
+      });
+
+      console.log(res.length);
     }),
   100000,
 );

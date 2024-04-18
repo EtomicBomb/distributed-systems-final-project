@@ -433,10 +433,21 @@ async function esvs(promise) {
 }
 
 function Client() {
-  // query term, if query is null, returns all courses
-  this.search = async (query) => {
+  /*
+  Sends request to all courses nodes to search for the request.  Only 1 search
+  (query, course, or department) can be done at a time
+
+  params:
+    - query: string, full text search
+    - course: string, course subject + code in the format "CSCI 1380"
+    - department: string, ex "CSCI"
+
+  return:
+    arr, list of [courseCode, details] "tuples"
+  */
+  this.search = async (query, course, department) => {
     let queryRes = await util.sendToAll({
-      message: [query],
+      message: [query, course, department],
       service: "courses",
       method: "search",
       gid: "courses",
@@ -450,16 +461,8 @@ function Client() {
       queryRes = queryRes.sort((a, b) => a[0].localeCompare(b[0]));
     } else {
       // sort by ranking
-      const filePath = "output.txt";
-      fs.writeFile(filePath, JSON.stringify(queryRes), (err) => {
-        if (err) {
-          console.error("Error writing to file:", err);
-          return;
-        }
-      });
       queryRes = queryRes.sort((a, b) => b[1].rank - a[1].rank);
     }
-
     return queryRes;
   };
   this.studentsTaking = async (token) => {
@@ -693,23 +696,47 @@ function Courses() {
   };
 
   /* 
-  searches for the course using the node's internal indexes.  if query is null
-  or empty query, return all courses
+  Searches for the course using the node's internal indexes.  if all parameters
+  are null, return all courses.  Else, only 1 parameter can be non-null
 
   params:
-    - query: string, search query for the courses
-    
+    - query: string, full text search
+    - course: string, course subject + code in the format "CSCI 1380"
+    - department: string, ex "CSCI"
+
   returns:
     - arr, list of courseCodes mapped to their rank and course details 
         [[course code, {...description, rank: rankVal} ** this is a map], ...]
   */
-  this.search = async (query) => {
+  this.search = async (query, course, department) => {
     // make sure index is ready
     await this.beginIndex();
 
-    // if null or empty, return all courses
-    if (query === null || query === "") {
+    // if all null or empty, return all courses
+    if (
+      (query === null || query === "") &&
+      course === null &&
+      department === null
+    ) {
       return coursesMap;
+    }
+    // if searching for specific course
+    if (course) {
+      if (!coursesMap.has(course)) {
+        return [];
+      }
+      return [[course, coursesMap.get(course)]];
+    }
+    // if searching for department
+    if (department) {
+      let res = [];
+      coursesMap.forEach((details, courseCode) => {
+        let courseDep = courseCode.split(" ")[0].toLowerCase();
+        if (courseDep.includes(department.toLowerCase())) {
+          res.push([courseCode, details]);
+        }
+      });
+      return res;
     }
     // preprocess query - lower case, remove punctuation, split
     query = query.toLowerCase().replace(regex, "").split(" ");
@@ -718,17 +745,8 @@ function Courses() {
 
     // calculate query tf
     let tf = util.calculateTf(processedQuery, null, null);
-
     // calculate query tfidf
     let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, tfidf);
-
-    const filePath = "test.txt";
-    fs.writeFile(filePath, util.serialize(docVecs), (err) => {
-      if (err) {
-        console.error("Error writing to file:", err);
-        return;
-      }
-    });
 
     // calcualte query-document similarity
     let results = [];
@@ -736,12 +754,12 @@ function Courses() {
       let rank = util.cosinesim(docVec, queryVec);
 
       // cutoff for docs not returned
-      // if (rank < 0.5) {
-      //   return;
-      // }
+      if (rank < 0.6) {
+        return;
+      }
 
       let details = { ...coursesMap.get(doc) };
-      details.set("rank", rank);
+      details["rank"] = rank;
       results.push([doc, details]);
     });
 

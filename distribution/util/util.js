@@ -4,7 +4,7 @@ const { JSDOM } = require("jsdom");
 const serialization = require("./serialization");
 const id = require("./id");
 const natural = require("natural");
-
+const fs = require("fs");
 // stemmer for created the inverted index
 const porterStemmer = natural.PorterStemmer;
 // stop words
@@ -211,6 +211,7 @@ function calculateTfidf(courses) {
       ...instructors,
       subject,
       number,
+      courseCode.toLowerCase(),
     ];
     let processedTerms = stemAndRemoveStopWords(splitTerms);
     // merge repeat words and map to frequency count and course code
@@ -225,7 +226,7 @@ function calculateTfidf(courses) {
   const N = courses.size;
   idf.forEach((cntSet, term) => {
     let c_i = cntSet.size;
-    let idf_i = 1 + Math.log(N / (1 + c_i));
+    let idf_i = 1 + Math.log((N + 1) / (1 + c_i));
     idf.set(term, idf_i);
   });
 
@@ -390,7 +391,7 @@ function calculateQueryTfidf(tf, idf, tfidf) {
       let vecUpdate = docVecs.get(courseCode) || [];
       let docTfidf = termsToTfidf.get(term) || 0;
       vecUpdate.push(docTfidf);
-      docVecs.set(term, vecUpdate);
+      docVecs.set(courseCode, vecUpdate);
     });
   });
 
