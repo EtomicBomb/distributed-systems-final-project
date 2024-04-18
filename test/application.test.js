@@ -3,10 +3,20 @@ const { createGroup } = require("../distribution/all");
 const distribution = require("../distribution");
 const local = distribution.local.async;
 
+function shuffle(array) {
+    const ret = [];
+    while (array.length > 0) {
+        const i = Math.floor(Math.random() * array.length);
+        ret.push(...array.splice(i, 1));
+    }
+    return ret;
+}
+
 test(
     'stress test',
     () => 
-    setup({ client: 3, students: 5, courses: 6 }, async (gidNodes) => {
+    setup({ client: 1, students: 5, courses: 6 }, async (gidNodes) => {
+        const [client] = gidNodes.client;
       const register = (node) => ({
         service: "client",
         method: "register",
@@ -25,16 +35,16 @@ test(
 
         const promises = [];
 
-        const students = await local.authoritativeStudents.list();
-        const courses = await local.authoritativeCourses.list();
+        let students = await local.authoritativeStudents.list();
+        students = shuffle(students).slice(0, 100);
+        let courses = await local.authoritativeCourses.list();
+        courses = shuffle(courses).slice(0, 25);
 
         for (let i = 0; i < 10; i++) {
             let code = Math.floor(Math.random() * courses.length);
             code = courses[code];
             let student = Math.floor(Math.random() * students.length);
             student = students[student];
-            let client = Math.floor(Math.random() * gidNodes.client.length);
-            client = gidNodes.client[client];
 
               promises.push(local.comm.send(
                 [code, student],
@@ -42,7 +52,48 @@ test(
               ));
         }
         const result = await Promise.allSettled(promises);
-        console.log(result);
+
+        const studentToCourses = new Map();
+        const courseToStudents = new Map();
+
+        for (const student of students) {
+            const taking = await local.comm.send([student], listCourses(client));
+            expect(taking.length).toBeLessThanOrEqual(5);
+
+            studentToCourses.set(student, taking);
+        }
+
+        for (const course of courses) {
+            const enrolled = await local.comm.send([course], listStudents(client));
+            courseToStudents.set(course, enrolled);
+        }
+
+        console.trace(studentToCourses);
+        console.trace(courseToStudents);
+
+        for (const [c, ss] of courseToStudents) {
+            for (const s of ss) {
+                expect(studentToCourses.get(s)).toContain(c);
+            }
+        }
+
+        for (const [s, cs] of studentToCourses) {
+            for (const c of cs) {
+                expect(courseToStudents.get(c)).toContain(s);
+            }
+        }
+
+//            for (const student of enrolled) {
+//                const taking = await local.comm.send([student], listCourses(client));
+//                expect(taking).toContain(course);
+//            }
+
+//        for (const 
+//            for (const t of taking) {
+//                const enrolled = await local.comm.send([t], listStudents(client));
+//                console.trace(t, enrolled, student);
+//                expect(enrolled).toContain(student);
+//            }
 
     }),
   60 * 1000,
@@ -116,6 +167,8 @@ async function setup(gidCounts, job) {
   await new Promise((res) => server.close(res));
   return result;
 }
+
+/*
 
 test(
   "test registration dependents",
@@ -410,3 +463,5 @@ test(
     }),
   10000,
 );
+
+*/

@@ -510,6 +510,7 @@ function Client() {
     ]);
     const success =
       studentsLock.status === "fulfilled" && coursesLock.status === "fulfilled";
+      console.trace(code, token, studentsLock, coursesLock);
     const studentsSubmit = util.callOnHolder({
       key: token,
       value: null,
@@ -761,6 +762,7 @@ function Courses() {
     const lock = `course_lock_${randomUUID()}`;
     locks.get(code).locks.add(lock);
     locks.get(code).tokens.add(token);
+      console.trace(`added lock ${lock}`);
     return lock;
   };
 
@@ -784,6 +786,7 @@ function Courses() {
     locks.get(code).tokens.delete(token);
 
     registered.get(code).add(token);
+      console.trace(`submitting lock ${lock} ${code} ${token}`);
   };
 }
 
