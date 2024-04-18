@@ -177,7 +177,7 @@ function calculateTfidf(courses) {
   courses.forEach((details, courseCode) => {
     if (Object.keys(details).length === 0) {
       // empty course
-      return;
+      return [tfidf, idf];
     }
 
     let subject =

@@ -10,6 +10,7 @@ const {
   readFile,
 } = require("node:fs/promises");
 const childProcess = require("node:child_process");
+const fs = require("fs");
 
 const { putInDistribution } = require("./all");
 const util = require("./util/util");
@@ -433,7 +434,7 @@ async function esvs(promise) {
 
 function Client() {
   // query term, if query is null, returns all courses
-  this.search = async ({ query }) => {
+  this.search = async (query) => {
     let queryRes = await util.sendToAll({
       message: [query],
       service: "courses",
@@ -443,14 +444,21 @@ function Client() {
       subset: null,
     });
 
+    queryRes = Object.values(queryRes[1]).flatMap((arr) => arr);
     if (query == null || query == "") {
       // sort by course code names
       queryRes = queryRes.sort((a, b) => a[0].localeCompare(b[0]));
     } else {
       // sort by ranking
+      const filePath = "output.txt";
+      fs.writeFile(filePath, JSON.stringify(queryRes), (err) => {
+        if (err) {
+          console.error("Error writing to file:", err);
+          return;
+        }
+      });
       queryRes = queryRes.sort((a, b) => b[1].rank - a[1].rank);
     }
-    console.log(queryRes);
 
     return queryRes;
   };
@@ -714,15 +722,23 @@ function Courses() {
     // calculate query tfidf
     let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, tfidf);
 
+    const filePath = "test.txt";
+    fs.writeFile(filePath, util.serialize(docVecs), (err) => {
+      if (err) {
+        console.error("Error writing to file:", err);
+        return;
+      }
+    });
+
     // calcualte query-document similarity
     let results = [];
     docVecs.forEach((docVec, doc) => {
       let rank = util.cosinesim(docVec, queryVec);
 
       // cutoff for docs not returned
-      if (rank < 0.5) {
-        return;
-      }
+      // if (rank < 0.5) {
+      //   return;
+      // }
 
       let details = { ...coursesMap.get(doc) };
       details.set("rank", rank);
