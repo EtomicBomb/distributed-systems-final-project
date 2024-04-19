@@ -46,5 +46,11 @@ EOL
 
     run_ssh $targetPublic "sudo apt update && sudo apt install -y nodejs git vim npm && mkdir -p final && rm -rf final/distribution"
     scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem -r ../www ../distribution.js ../distribution ../package.json ../data ../store "admin@$targetPublic:~/final"
-    run_ssh $targetPublic "cd final; npm install; pkill node; nohup ./distribution.js --config '$known' >> log.txt 2>&1 &"
+    run_ssh $targetPublic "\
+        cd final; \
+        npm install; \
+        pkill node; \
+        sudo setcap cap_net_bind_service=+ep \$(which node); \
+        nohup ./distribution.js --config '$known' >> dist.log 2>&1 & \
+        nohup ./www/main.mjs >> www.log 2>&1 &"
 done

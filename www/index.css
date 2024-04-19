@@ -28,6 +28,25 @@ body {
     }
 }
 
-form > * {
-    display: block;
+form {
+
+    & > * {
+        display: block;
+    }
+
+    & label {
+        margin: 0.5em 1em;
+    }
+
+    & input {
+        margin: 0 1em;
+    }
+}
+
+output {
+    transition: opacity 10ms linear;
+}
+
+.htmx-request output {
+    opacity: 0;
 }
