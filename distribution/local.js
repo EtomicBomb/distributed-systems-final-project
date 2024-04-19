@@ -398,12 +398,12 @@ function AuthoritativeCourses() {
     return [...map.keys()];
   };
   this.details = async (codes) => {
-      try {
-    await setup();
-    return codes.map((code) => [code, map.get(code)]);
-      } catch (cause) {
-          throw new Error(`${cause}`, {cause});
-      }
+    try {
+      await setup();
+      return codes.map((code) => [code, map.get(code)]);
+    } catch (cause) {
+      throw new Error(`${cause}`, { cause });
+    }
   };
 }
 
@@ -470,9 +470,9 @@ function Client() {
     return queryRes;
   };
   this.studentsTaking = async (token) => {
-      if (typeof token !== 'string' && !(token instanceof String)) {
-          throw new Error(`expected string, found ${token}`);
-      }
+    if (typeof token !== "string" && !(token instanceof String)) {
+      throw new Error(`expected string, found ${token}`);
+    }
     return await util.callOnHolder({
       key: token,
       value: null,
@@ -484,9 +484,9 @@ function Client() {
     });
   };
   this.coursesTaking = async (code) => {
-      if (typeof code !== 'string' && !(code instanceof String)) {
-          throw new Error(`expected string, found ${code}`);
-      }
+    if (typeof code !== "string" && !(code instanceof String)) {
+      throw new Error(`expected string, found ${code}`);
+    }
     return await util.callOnHolder({
       key: code,
       value: null,
@@ -498,12 +498,12 @@ function Client() {
     });
   };
   this.register = async (code, token) => {
-      if (typeof code !== 'string' && !(code instanceof String)) {
-          throw new Error(`expected string, found ${code}`);
-      }
-      if (typeof token !== 'string' && !(token instanceof String)) {
-          throw new Error(`expected string, found ${token}`);
-      }
+    if (typeof code !== "string" && !(code instanceof String)) {
+      throw new Error(`expected string, found ${code}`);
+    }
+    if (typeof token !== "string" && !(token instanceof String)) {
+      throw new Error(`expected string, found ${token}`);
+    }
     const record = await util.callOnHolder({
       key: token,
       value: null,
@@ -537,7 +537,7 @@ function Client() {
     ]);
     const success =
       studentsLock.status === "fulfilled" && coursesLock.status === "fulfilled";
-      console.trace(code, token, studentsLock, coursesLock);
+    console.trace(code, token, studentsLock, coursesLock);
     const studentsSubmit = util.callOnHolder({
       key: token,
       value: null,
@@ -693,17 +693,20 @@ function Courses() {
     const auth = "authoritativeCourses";
     const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
-      
+
     res = Object.values(res)[0];
     res = await util.whichHashTo(res, "courses", util.id.consistentHash);
-      const foo = JSON.stringify(Object.fromEntries(res));
+    const foo = JSON.stringify(Object.fromEntries(res));
     const ours = res.get(util.id.getNID(global.nodeConfig));
     const details = { service: auth, method: "details" };
-      try {
-    res = await esvs(distribution[auth].async.comm.send([ours], details));
-        } catch (cause) {
-            throw new Error(`ours: ${JSON.stringify(ours)} foo(${foo}) ${util.id.getNID(global.nodeConfig)} ${JSON.stringify(global.nodeConfig)}`, {cause});
-        }
+    try {
+      res = await esvs(distribution[auth].async.comm.send([ours], details));
+    } catch (cause) {
+      throw new Error(
+        `ours: ${JSON.stringify(ours)} foo(${foo}) ${util.id.getNID(global.nodeConfig)} ${JSON.stringify(global.nodeConfig)}`,
+        { cause },
+      );
+    }
     coursesMap = new Map(Object.values(res)[0]);
     locks = new Map(
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),
@@ -818,7 +821,7 @@ function Courses() {
     const lock = `course_lock_${randomUUID()}`;
     locks.get(code).locks.add(lock);
     locks.get(code).tokens.add(token);
-      console.trace(`added lock ${lock}`);
+    console.trace(`added lock ${lock}`);
     return lock;
   };
 
@@ -842,7 +845,7 @@ function Courses() {
     locks.get(code).tokens.delete(token);
 
     registered.get(code).add(token);
-      console.trace(`submitting lock ${lock} ${code} ${token}`);
+    console.trace(`submitting lock ${lock} ${code} ${token}`);
   };
 }
 

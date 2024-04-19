@@ -16,7 +16,7 @@ function getNID(node) {
 
 function getSID(node) {
   return getNID(node);
-//  return getNID(node).substring(0, 5);
+  //  return getNID(node).substring(0, 5);
 }
 
 function idToNum(id) {
