@@ -15,10 +15,14 @@ aws ec2 authorize-security-group-ingress --group-id "$SG_INTERNAL" --protocol tc
 aws ec2 authorize-security-group-ingress --group-id "$SG_INTERNAL" --protocol tcp --port 8080 --source-group "$SG_INTERNAL"
 aws ec2 authorize-security-group-ingress --group-id "$SG_INTERNAL" --protocol tcp --port 8080 --source-group "$SG_CLIENT"
 
+# TODO: consider only 
 # client group
 aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 22   --cidr 0.0.0.0/0
 aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 8080 --cidr 0.0.0.0/0 
 aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 8080 --source-group "$SG_CLIENT"
+
+# TODO: consider this, instead of --port 8080 --cidr 0.0.0.0/0
+# aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 80 --cidr 0.0.0.0/0 
 
 # key pair
 aws ec2 create-key-pair \

@@ -265,6 +265,9 @@ function mapValues(x, func) {
 }
 
 function defaultGIDConfig(gidConfig) {
+    if (!gidConfig.gid) {
+        gidConfig = {gid: gidConfig};
+    }
   return {
     //    gid: 'all',
     subset: (lst) => 3,

@@ -398,8 +398,12 @@ function AuthoritativeCourses() {
     return [...map.keys()];
   };
   this.details = async (codes) => {
+      try {
     await setup();
     return codes.map((code) => [code, map.get(code)]);
+      } catch (cause) {
+          throw new Error(`${cause}`, {cause});
+      }
   };
 }
 
@@ -427,7 +431,7 @@ function AuthoritativeStudents() {
 async function esvs(promise) {
   const [es, vs] = await promise;
   if (Object.keys(es).length > 0) {
-    throw new Error("some nodes responded with an error", { cause: es });
+    throw new Error("some nodes responded with an error", { cause: [es, vs] });
   }
   return vs;
 }
@@ -466,6 +470,9 @@ function Client() {
     return queryRes;
   };
   this.studentsTaking = async (token) => {
+      if (typeof token !== 'string' && !(token instanceof String)) {
+          throw new Error(`expected string, found ${token}`);
+      }
     return await util.callOnHolder({
       key: token,
       value: null,
@@ -477,6 +484,9 @@ function Client() {
     });
   };
   this.coursesTaking = async (code) => {
+      if (typeof code !== 'string' && !(code instanceof String)) {
+          throw new Error(`expected string, found ${code}`);
+      }
     return await util.callOnHolder({
       key: code,
       value: null,
@@ -488,6 +498,12 @@ function Client() {
     });
   };
   this.register = async (code, token) => {
+      if (typeof code !== 'string' && !(code instanceof String)) {
+          throw new Error(`expected string, found ${code}`);
+      }
+      if (typeof token !== 'string' && !(token instanceof String)) {
+          throw new Error(`expected string, found ${token}`);
+      }
     const record = await util.callOnHolder({
       key: token,
       value: null,
@@ -677,11 +693,17 @@ function Courses() {
     const auth = "authoritativeCourses";
     const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
+      
     res = Object.values(res)[0];
     res = await util.whichHashTo(res, "courses", util.id.consistentHash);
+      const foo = JSON.stringify(Object.fromEntries(res));
     const ours = res.get(util.id.getNID(global.nodeConfig));
     const details = { service: auth, method: "details" };
+      try {
     res = await esvs(distribution[auth].async.comm.send([ours], details));
+        } catch (cause) {
+            throw new Error(`ours: ${JSON.stringify(ours)} foo(${foo}) ${util.id.getNID(global.nodeConfig)} ${JSON.stringify(global.nodeConfig)}`, {cause});
+        }
     coursesMap = new Map(Object.values(res)[0]);
     locks = new Map(
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),

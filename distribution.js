@@ -12,7 +12,10 @@ function optional(key, value) {
   return value ? {[key]: value} : {};
 }
 
+console.log('args', args);
+
 const argsConfig = args.config ? util.deserialize(args.config) : {};
+
 global.nodeConfig = {
   ip: '0.0.0.0',
   port: 8080,
@@ -23,6 +26,9 @@ global.nodeConfig = {
   ...optional('port', argsConfig.port),
   ...optional('onStart', argsConfig.onStart),
 };
+
+const hostOn = argsConfig.hostOn;
+const known = argsConfig.known || [];
 
 async function handleConnection(req, server) {
   await local.async.status.incrementCount();
@@ -47,7 +53,9 @@ async function handleConnection(req, server) {
   return [e, v];
 }
 
-function start(started) {
+function start(started, hostOn) {
+    let {ip, port} = hostOn ? hostOn : global.nodeConfig;
+  
   const server = http.createServer((req, res) => {
     handleConnection(req, server)
         .then((ev) => {
@@ -61,7 +69,7 @@ function start(started) {
         });
   });
 
-  server.listen(global.nodeConfig.port, global.nodeConfig.ip, () => {
+  server.listen(port, ip, () => {
     started(server, global.nodeConfig, () => {});
   });
 }
@@ -76,8 +84,15 @@ module.exports = global.distribution = {
 local.async.groups.registerKnownNode(global.nodeConfig);
 putInDistribution({gid: 'all'});
 
-/* The following code is run when distribution.js is run directly */
+for (const {gid, node} of known) {
+    // dirty no await
+    local.async.groups.registerKnownNode(node);
+    // dirty no await
+    console.log('groups add', gid, node);
+    local.async.groups.add(gid, node);
+}
+
 if (require.main === module) {
-  start(global.nodeConfig.onStart);
+  start(global.nodeConfig.onStart, hostOn);
 }
 

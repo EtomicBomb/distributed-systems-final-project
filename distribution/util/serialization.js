@@ -60,7 +60,7 @@ const formats = [
     de: (value, evil) => new Date(value),
   },
   {
-    matches: (object) => object instanceof Error,
+    matches: (object) => (object instanceof Error) || (object.name || '').includes('Error'),
     kind: "error",
     ser: (object) => ({
       message: object.message,

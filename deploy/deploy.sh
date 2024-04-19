@@ -1,54 +1,67 @@
+#!/bin/bash
+
 # run this from the deploy folder
 
-SG_CLIENT=$(aws ec2 describe-security-groups   --group-names group-client-1380   | jq -r .SecurityGroups[0].GroupId)
-SG_INTERNAL=$(aws ec2 describe-security-groups --group-names group-internal-1380 | jq -r .SecurityGroups[0].GroupId)
+SG_CLIENT=$(aws ec2 describe-security-groups   --group-names group-client-1380   --output json | jq -r .SecurityGroups[0].GroupId)
+SG_INTERNAL=$(aws ec2 describe-security-groups --group-names group-internal-1380 --output json | jq -r .SecurityGroups[0].GroupId)
 
-# gather the ips
-aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_CLIENT" \
-    | jq -r '.Reservations[].Instances[0].InstanceId' \
-    | xargs aws ec2 describe-instances --instance-ids \
-    | jq '[.Reservations[].Instances[0].NetworkInterfaces[0].Association.PublicIp]' \
+aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_CLIENT" --output json \
+    | jq '[.Reservations[].Instances[] | {public: .NetworkInterfaces[0].Association.PublicIp, private: .PrivateIpAddress}]' \
     > client.json
 
-aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_INTERNAL" \
-    | jq -r '.Reservations[].Instances[0].InstanceId' \
-    | xargs aws ec2 describe-instances --instance-ids \
-    | jq '[.Reservations[].Instances[0].PrivateIpAddress]' \
-    > internal-private.json
+aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_INTERNAL" --output json \
+    | jq '[.Reservations[].Instances[] | {public: .NetworkInterfaces[0].Association.PublicIp, private: .PrivateIpAddress}]' \
+    > internal.json
 
-aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_INTERNAL" \
-    | jq -r '.Reservations[].Instances[0].InstanceId' \
-    | xargs aws ec2 describe-instances --instance-ids \
-    | jq '[.Reservations[].Instances[0].NetworkInterfaces[0].Association.PublicIp]' \
-    > internal-public.json
+# # gather the ips
+# aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_CLIENT" --output json \
+#     | jq '[.Reservations[].Instances[].NetworkInterfaces[0].Association.PublicIp]' \
+# aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_CLIENT" --output json \
+#     | jq '[.Reservations[].Instances[].PrivateIpAddress]' \
+#     > client-private.json
+# aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_INTERNAL" --output json \
+#     | jq '[.Reservations[].Instances[].PrivateIpAddress]' \
+#     > internal-private.json
+# aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_INTERNAL" --output json \
+#     | jq '[.Reservations[].Instances[].NetworkInterfaces[0].Association.PublicIp]' \
+#     > internal-public.json
 
-add_group() {
-    local ip="$1"
-    local gid="$2"
-    local ipg="$3"
-    local d
-    d=$(node -e "console.log(require('../distribution/util/serialization.js').serialize(['$gid', {ip: '$ipg', port: 8080}]))")
-    curl -s -X POST "$ip:8080/groups/add" -d "$d"
+run_ssh() {
+    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem "admin@$1" "$2"
 }
 
-client=$(jq -rn '$client | .[]' --argfile client client.json)
-internals=$(jq -rn '$internal | .[]' --argfile internal internal-private.json)
-ips=$(jq -rn '$internal + $client | .[]' --argfile internal internal-public.json --argfile client client.json)
+# ssh -i keypair-1380.pem "admin@$ip"
 
-for ip in $ips; do
-    ssh -i keypair-1380.pem "admin@$ip" 'sudo apt update && sudo apt install -y nodejs git vim npm'
-    ssh -i keypair-1380.pem "admin@$ip" 'mkdir -p final && rm -rf final/distribution'
-    scp -r -i keypair-1380.pem ../distribution.js ../distribution ../package.json "admin@$ip:~/final"
-    ssh -i keypair-1380.pem "admin@$ip" 'cd final; npm install; pkill node; nohup ./distribution.js > /dev/null 2>&1 &'
+# no trailing comma allowed
 
-    add_group "$ip" "client" "$client"
+for ip in $(jq -nc --argfile internal internal.json --argfile client client.json '$internal + $client | .[]'); do
+    targetPublic=$(echo "$ip" | jq -r '.public')
+    targetPrivate=$(echo "$ip" | jq -r '.private')
 
-    add_group "$ip" "authoritativeStudents" "${internals[0]}"
-    add_group "$ip" "authoritativeCourses" "${internals[0]}"
+    a=$(cat << EOL 
+{
+    ip: \$targetPrivate,
+    port: 8080,
+    hostOn: { ip: "0.0.0.0", port: 8080 },
+    known: [
+        {gid: "client", node: {ip: \$client[0].private, port: 8080}}, 
+        {gid: "authoritativeStudents", node: {ip: \$internals[0].private, port: 8080}},
+        {gid: "authoritativeCourses", node: {ip: \$internals[0].private, port: 8080}},
+        {gid: "students", node: {ip: \$internals[1].private, port: 8080}},
+        {gid: "courses", node: {ip: \$internals[2].private, port: 8080}},
+        {gid: "students", node: {ip: \$internals[3].private, port: 8080}},
+        {gid: "courses", node: {ip: \$internals[4].private, port: 8080}}
+    ]
+} 
+EOL
+)
 
-    add_group "$ip" "students" "${internals[1]}"
-    add_group "$ip" "courses" "${internals[2]}"
+    b=$(jq -n --arg targetPrivate "$targetPrivate" --argfile client client.json --argfile internals internal.json "$a")
+    known=$(node -e "console.log(require('../distribution/util/serialization.js').serialize($b))")
 
-    add_group "$ip" "students" "${internals[3]}"
-    add_group "$ip" "courses" "${internals[4]}"
+    #run_ssh $targetPublic "sudo apt update && sudo apt install -y nodejs git vim npm && mkdir -p final && rm -rf final/distribution"
+    run_ssh $targetPublic "mkdir -p final && rm -rf final/distribution"
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem -r ../distribution.js ../distribution ../package.json ../data ../store "admin@$targetPublic:~/final"
+#     run_ssh $targetPublic "cd final; npm install; pkill node; nohup ./distribution.js --foo 4 --config '$known' >> log.txt 2>&1 &"
+    run_ssh $targetPublic "cd final; pkill node; nohup ./distribution.js --foo 4 --config '$known' >> log.txt 2>&1 &"
 done
