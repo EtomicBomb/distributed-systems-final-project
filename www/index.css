@@ -1,0 +1,33 @@
+:root {
+    font-family: sans-serif;
+}
+
+html {
+    background-color: #8d021f;
+}
+
+
+body {
+    background-color: beige;
+    border-radius: 1em;
+    max-width: 30em;
+    margin: 2em auto;
+    padding: 2em 2em;
+
+    & h1 {
+        margin: 0;
+        text-align: center;
+    }
+    
+    & output {
+        margin: 1em;
+        min-height: 1em;
+        border-radius: 0.5em;
+        border: 2px solid black;
+        background-color: white;
+    }
+}
+
+form > * {
+    display: block;
+}

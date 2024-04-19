@@ -45,6 +45,6 @@ EOL
     known=$(node -e "console.log(require('../distribution/util/serialization.js').serialize($b))")
 
     run_ssh $targetPublic "sudo apt update && sudo apt install -y nodejs git vim npm && mkdir -p final && rm -rf final/distribution"
-    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem -r ../distribution.js ../distribution ../package.json ../data ../store "admin@$targetPublic:~/final"
-    run_ssh $targetPublic "cd final; npm install; pkill node; nohup ./distribution.js --foo 4 --config '$known' >> log.txt 2>&1 &"
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem -r ../www ../distribution.js ../distribution ../package.json ../data ../store "admin@$targetPublic:~/final"
+    run_ssh $targetPublic "cd final; npm install; pkill node; nohup ./distribution.js --config '$known' >> log.txt 2>&1 &"
 done

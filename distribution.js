@@ -12,8 +12,6 @@ function optional(key, value) {
   return value ? {[key]: value} : {};
 }
 
-console.log('args', args);
-
 const argsConfig = args.config ? util.deserialize(args.config) : {};
 
 global.nodeConfig = {
@@ -88,8 +86,8 @@ for (const {gid, node} of known) {
     // dirty no await
     local.async.groups.registerKnownNode(node);
     // dirty no await
-    console.log('groups add', gid, node);
     local.async.groups.add(gid, node);
+    console.log('groups add', gid, node);
 }
 
 if (require.main === module) {

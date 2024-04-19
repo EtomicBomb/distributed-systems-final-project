@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Distributed Courses at Brown</title>
+    <link rel="stylesheet" href="index.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12" integrity="sha384-ujb1lZYygJmzgSwoxRggbCHcjc0rB2XoQrxeTUQyRjrOnlCoYta87iKBWq3EsdM2" crossorigin="anonymous"></script>
+</head>
+<body>
+    <h1>Distributed Courses at Brown</h1>
+
+    <h2>Course Search</h2>
+
+    <form 
+        hx-post="/search"
+        hx-target="find output"
+        hx-trtigger="from:find input"
+    >
+        <label>query<input name="query" type="search"></label>
+        <label>course<input name="course" type="search"></label>
+        <label>department<input name="department" type="search"></label>
+        <input type="submit" value="search">
+        <output></output>
+    </form>
+
+    <h2>Registration</h2>
+
+    <form
+        hx-post="/register"
+        hx-target="find output"
+    >
+        <label>student<input name="token" type="text"></label>
+        <label>course code<input name="code" type="text"></label>
+        <input type="submit" value="submit">
+        <output></output>
+    </form>
+</body>
+
+
