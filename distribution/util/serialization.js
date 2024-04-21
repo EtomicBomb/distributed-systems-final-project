@@ -63,11 +63,7 @@ const formats = [
     matches: (object) =>
       object instanceof Error || (object.name || "").includes("Error"),
     kind: "error",
-    ser: (object) => ({
-      message: object.message,
-      cause: object.cause,
-      stack: object.stack,
-    }),
+    ser: (object) => objectifyError(object),
     de: ({ message, cause, stack }, evil) => {
       const ret = new Error(message, { cause });
       ret.stack = stack;
@@ -75,6 +71,18 @@ const formats = [
     },
   },
 ];
+
+
+function objectifyError(error) {
+    if (!error) {
+        return error;
+    }
+    return {
+        message: error.message,
+        cause: objectifyError(error.cause),
+        stack: error.stack,
+    };
+}
 
 function mapObject(object, func) {
   const entries = Object.entries(object).map(([k, v]) => [k, func(v)]);

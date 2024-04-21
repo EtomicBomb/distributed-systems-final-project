@@ -398,12 +398,8 @@ function AuthoritativeCourses() {
     return [...map.keys()];
   };
   this.details = async (codes) => {
-    try {
       await setup();
       return codes.map((code) => [code, map.get(code)]);
-    } catch (cause) {
-      throw new Error(`${cause}`, { cause });
-    }
   };
 }
 
@@ -537,7 +533,6 @@ function Client() {
     ]);
     const success =
       studentsLock.status === "fulfilled" && coursesLock.status === "fulfilled";
-    console.trace(code, token, studentsLock, coursesLock);
     const studentsSubmit = util.callOnHolder({
       key: token,
       value: null,
@@ -556,12 +551,13 @@ function Client() {
       service: "courses",
       method: success ? "submit" : "unlock",
     });
-    await Promise.allSettled([studentsSubmit, coursesSubmit]);
-    if (!success) {
-      throw new Error(
-        `registration failed: ${studentsLock.reason} ${coursesLock.reason}`,
-      );
-    }
+    await Promise.all([studentsSubmit, coursesSubmit]);
+      if (studentsLock.reason) {
+          throw new Error('student node rejected registration', {cause: studentsLock.reason});
+      }
+      if (coursesLock.reason) {
+          throw new Error('course node rejected registration', {cause: coursesLock.reason});
+      }
   };
 }
 
@@ -595,7 +591,7 @@ function Students() {
   this.getRecord = async (token) => {
     await this.beginIndex();
     if (!map.has(token)) {
-      throw new Error(`unknown student: ${token}`);
+      throw new Error(`unknown student: "${token}"`);
     }
     return map.get(token);
   };
@@ -606,14 +602,14 @@ function Students() {
   this.listRegister = async (token) => {
     await this.beginIndex();
     if (!registered.has(token)) {
-      throw new Error(`unknown student: ${token}`);
+      throw new Error(`unknown student: "${token}"`);
     }
     return [...registered.get(token)];
   };
   this.lock = async (code, token) => {
     await this.beginIndex();
     if (!registered.has(token)) {
-      throw new Error(`unknown student: ${token}`);
+      throw new Error(`unknown student: "${token}"`);
     }
     const alreadyRegistered =
       locks.get(token).codes.size + registered.get(token).size;
@@ -671,7 +667,7 @@ function prerequisiteQualifications(taken, prerequisites) {
     const { subject, number } = value;
     return taken.includes(`${subject} ${number}`);
   }
-  throw new Error(`unknown prerequisite ${tag}`);
+  throw new Error(`unknown prerequisite "${tag}"`);
 }
 
 // Handles course registration states (list of students, capacity), course search
@@ -699,14 +695,7 @@ function Courses() {
     const foo = JSON.stringify(Object.fromEntries(res));
     const ours = res.get(util.id.getNID(global.nodeConfig));
     const details = { service: auth, method: "details" };
-    try {
       res = await esvs(distribution[auth].async.comm.send([ours], details));
-    } catch (cause) {
-      throw new Error(
-        `ours: ${JSON.stringify(ours)} foo(${foo}) ${util.id.getNID(global.nodeConfig)} ${JSON.stringify(global.nodeConfig)}`,
-        { cause },
-      );
-    }
     coursesMap = new Map(Object.values(res)[0]);
     locks = new Map(
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),
@@ -805,9 +794,12 @@ function Courses() {
   // does not qualify for the course.
   this.lock = async (code, record, token) => {
     await this.beginIndex();
+      if (!coursesMap.has(code)) {
+      throw new Error(`unknown course: "${code}"`);
+      }
     const courseRecord = coursesMap.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
-      throw new Error("you are not qualiafied to take this course");
+      throw new Error("you are not qualified to take this course");
     }
     if (!courseRecord.semester_range.includes(record.semester)) {
       throw new Error("you are not in the right semester to take this course");
@@ -821,7 +813,6 @@ function Courses() {
     const lock = `course_lock_${randomUUID()}`;
     locks.get(code).locks.add(lock);
     locks.get(code).tokens.add(token);
-    console.trace(`added lock ${lock}`);
     return lock;
   };
 

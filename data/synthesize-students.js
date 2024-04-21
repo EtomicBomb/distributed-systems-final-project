@@ -12,7 +12,7 @@ function randomStudent(courses, names, index) {
   });
   const name = Math.floor(Math.random() * names.length);
   return [
-    `student-${randomUUID()}`,
+    `B${index}`,
     {
       name: names[name],
       semester: semester,
