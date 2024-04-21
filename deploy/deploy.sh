@@ -52,5 +52,6 @@ EOL
         pkill node; \
         sudo setcap cap_net_bind_service=+ep \$(which node); \
         nohup ./distribution.js --config '$known' >> dist.log 2>&1 & \
-        nohup ./www/main.mjs >> www.log 2>&1 &"
+        cd www; \
+        nohup ./main.mjs >> www.log 2>&1 &"
 done

@@ -1,47 +1,32 @@
 #!/usr/bin/env node
 
 import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import Koa from 'koa';
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
+import serve from 'koa-static';
 import util from '../distribution/util/util.js';
 const { serialize, deserialize } = util;
 import fetch from 'node-fetch';
 
-const app = new Koa();
-const router = new Router();
+const router = new Router()
+    .post('/search', koaBody(), async (ctx, next) => {
+        const {query, course, department} = ctx.request.body;
+        ctx.body = await forward(renderSearch, '/client/search', query, course, department);
+        ctx.type = 'text/html';
+    })
+    .post('/register', koaBody(), async (ctx, next) => {
+        const {code, token} = ctx.request.body;
+        ctx.body = await forward(renderRegister, '/client/register', code, token);
+        ctx.type = 'text/html';
+    });
 
-router.get('/', async (ctx, next) => {
-    ctx.body = await readFile('www/index.html');
-    ctx.type = 'text/html';
-});
-
-router.get('/index.css', async (ctx, next) => {
-    ctx.body = await readFile('www/index.css');
-    ctx.type = 'text/css';
-});
-
-router.get('/favicon.ico', async (ctx, next) => {
-    ctx.body = await readFile('www/favicon.ico');
-    ctx.type = 'image/x-icon';
-});
-
-router.post('/search', async (ctx, next) => {
-    const {query, course, department} = ctx.request.body;
-    ctx.body = await forward(renderSearch, '/client/search', query, course, department);
-    ctx.type = 'text/html';
-});
-
-router.post('/register', async (ctx, next) => {
-    const {code, token} = ctx.request.body;
-    ctx.body = await forward(renderRegister, '/client/register', code, token);
-    ctx.type = 'text/html';
-});
-
-app.use(koaBody());
-app.use(router.routes());
-app.use(router.allowedMethods());
-app.listen(80);
+new Koa()
+    .use(serve('static'))
+    .use(router.routes())
+    .use(router.allowedMethods())
+    .listen(80);
 
 async function forward(render, pathname, ...args) {
     const url = new URL(pathname, 'http://127.0.0.1:8080/');
