@@ -7,8 +7,8 @@ aws ec2 create-security-group --group-name group-client-1380   --description "cl
 
 # get their actual ids
 
-SG_CLIENT=$(aws ec2 describe-security-groups --group-names     group-client-1380 | jq -r .SecurityGroups[0].GroupId)
-SG_INTERNAL=$(aws ec2 describe-security-groups --group-names group-internal-1380 | jq -r .SecurityGroups[0].GroupId)
+SG_CLIENT=$(aws ec2 describe-security-groups --group-names     group-client-1380 --output json | jq -r .SecurityGroups[0].GroupId)
+SG_INTERNAL=$(aws ec2 describe-security-groups --group-names group-internal-1380 --output json | jq -r .SecurityGroups[0].GroupId)
 
 # internal group
 aws ec2 authorize-security-group-ingress --group-id "$SG_INTERNAL" --protocol tcp --port 22   --cidr 0.0.0.0/0
@@ -20,7 +20,6 @@ aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp 
 aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 8080 --source-group "$SG_CLIENT"
 aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 8080 --source-group "$SG_INTERNAL"
 aws ec2 authorize-security-group-ingress --group-id "$SG_CLIENT" --protocol tcp --port 80 --cidr 0.0.0.0/0 
-
 # key pair
 aws ec2 create-key-pair \
     --key-name keypair-1380 \

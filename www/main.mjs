@@ -72,6 +72,9 @@ function renderError(error) {
 }
 
 function renderSearch(results) {
+    if (results.length === 0) {
+        return 'no results';
+    }
     return String.prototype.concat(...results.map(([code, detail]) => `
         <article>
             <h3>${code}: ${detail.title}</h3>
@@ -81,5 +84,5 @@ function renderSearch(results) {
 }
 
 function renderRegister(result) {
-    return `<p>registration successful</p>`;
+    return `registration successful`;
 }
