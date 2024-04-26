@@ -10,6 +10,7 @@ const {
   readFile,
 } = require("node:fs/promises");
 const childProcess = require("node:child_process");
+const fs = require("fs");
 
 const { putInDistribution } = require("./all");
 const util = require("./util/util");
@@ -397,8 +398,8 @@ function AuthoritativeCourses() {
     return [...map.keys()];
   };
   this.details = async (codes) => {
-    await setup();
-    return codes.map((code) => [code, map.get(code)]);
+      await setup();
+      return codes.map((code) => [code, map.get(code)]);
   };
 }
 
@@ -426,25 +427,48 @@ function AuthoritativeStudents() {
 async function esvs(promise) {
   const [es, vs] = await promise;
   if (Object.keys(es).length > 0) {
-    throw new Error("some nodes responded with an error", { cause: es });
+    throw new Error("some nodes responded with an error", { cause: [es, vs] });
   }
   return vs;
 }
 
 function Client() {
-  // Set a parameter to null if you're not making any specific search in that
-  // category. This can be implemented with mapreduce or something similar
-  this.search = async ({ subject, code, title, description, instructor }) => {
-    return await util.sendToAll({
-      message: [subject, code, title, description, instructor],
+  /*
+  Sends request to all courses nodes to search for the request.  Only 1 search
+  (query, course, or department) can be done at a time
+
+  params:
+    - query: string, full text search
+    - course: string, course subject + code in the format "CSCI 1380"
+    - department: string, ex "CSCI"
+
+  return:
+    arr, list of [courseCode, details] "tuples"
+  */
+  this.search = async (query, course, department) => {
+    let queryRes = await util.sendToAll({
+      message: [query, course, department],
       service: "courses",
       method: "search",
       gid: "courses",
       exclude: null,
       subset: null,
     });
+
+    queryRes = Object.values(queryRes[1]).flatMap((arr) => arr);
+    if (query == null || query == "") {
+      // sort by course code names
+      queryRes = queryRes.sort((a, b) => a[0].localeCompare(b[0]));
+    } else {
+      // sort by ranking
+      queryRes = queryRes.sort((a, b) => b[1].rank - a[1].rank);
+    }
+    return queryRes;
   };
   this.studentsTaking = async (token) => {
+    if (typeof token !== "string" && !(token instanceof String)) {
+      throw new Error(`expected string, found ${token}`);
+    }
     return await util.callOnHolder({
       key: token,
       value: null,
@@ -456,6 +480,9 @@ function Client() {
     });
   };
   this.coursesTaking = async (code) => {
+    if (typeof code !== "string" && !(code instanceof String)) {
+      throw new Error(`expected string, found ${code}`);
+    }
     return await util.callOnHolder({
       key: code,
       value: null,
@@ -467,6 +494,12 @@ function Client() {
     });
   };
   this.register = async (code, token) => {
+    if (typeof code !== "string" && !(code instanceof String)) {
+      throw new Error(`expected string, found ${code}`);
+    }
+    if (typeof token !== "string" && !(token instanceof String)) {
+      throw new Error(`expected string, found ${token}`);
+    }
     const record = await util.callOnHolder({
       key: token,
       value: null,
@@ -519,11 +552,12 @@ function Client() {
       method: success ? "submit" : "unlock",
     });
     await Promise.all([studentsSubmit, coursesSubmit]);
-    if (!success) {
-      throw new Error("registration failed", {
-        cause: [studentsLock.reason, coursesLock.reason],
-      });
-    }
+      if (studentsLock.reason) {
+          throw new Error('student node rejected registration', {cause: studentsLock.reason});
+      }
+      if (coursesLock.reason) {
+          throw new Error('course node rejected registration', {cause: coursesLock.reason});
+      }
   };
 }
 
@@ -531,7 +565,11 @@ function Students() {
   let map;
   let locks;
   let registered;
+  let indexed = false;
   this.beginIndex = async () => {
+    if (indexed) {
+      return map.size;
+    }
     const auth = "authoritativeStudents";
     const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
@@ -547,19 +585,32 @@ function Students() {
       tokens.map((token) => [token, { locks: new Set(), codes: new Set() }]),
     );
     registered = new Map(tokens.map((token) => [token, new Set()]));
+    indexed = true;
     return map.size;
   };
   this.getRecord = async (token) => {
+    await this.beginIndex();
+    if (!map.has(token)) {
+      throw new Error(`unknown student: "${token}"`);
+    }
     return map.get(token);
   };
   this.listTokens = async () => {
+    await this.beginIndex();
     return [...map.keys()];
   };
   this.listRegister = async (token) => {
-    console.trace(registered.get(token), token);
+    await this.beginIndex();
+    if (!registered.has(token)) {
+      throw new Error(`unknown student: "${token}"`);
+    }
     return [...registered.get(token)];
   };
   this.lock = async (code, token) => {
+    await this.beginIndex();
+    if (!registered.has(token)) {
+      throw new Error(`unknown student: "${token}"`);
+    }
     const alreadyRegistered =
       locks.get(token).codes.size + registered.get(token).size;
     if (alreadyRegistered >= 5) {
@@ -579,12 +630,17 @@ function Students() {
     return lock;
   };
   this.unlock = async (code, lock, token) => {
+    await this.beginIndex();
+    if (!locks.has(token)) {
+      return;
+    }
     locks.get(token).locks.delete(lock);
     locks.get(token).codes.delete(code);
   };
   this.submit = async (code, lock, token) => {
-    if (!locks.get(token).locks.has(lock)) {
-      throw new Error("we do not have a lock for this course");
+    await this.beginIndex();
+    if (!locks.has(token)) {
+      return;
     }
     locks.get(token).locks.delete(lock);
     locks.get(token).codes.delete(code);
@@ -611,119 +667,139 @@ function prerequisiteQualifications(taken, prerequisites) {
     const { subject, number } = value;
     return taken.includes(`${subject} ${number}`);
   }
-  throw new Error(`unknown prerequisite ${tag}`);
+  throw new Error(`unknown prerequisite "${tag}"`);
 }
 
 // Handles course registration states (list of students, capacity), course search
 function Courses() {
-  let map; // map of course index
+  let coursesMap; // map of course index
   let registered; // map of students registered for each course
   let locks; // map of lock for course registration
   let initialized = false;
+  let tfidf; // tfidf map, courseCode -> map(term -> tf-idf)
+  let idf; // idf: map, term -> idf
+  const regex = /[!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~]/g;
 
   // initializes courses index for current node, have to be called first!
   this.beginIndex = async () => {
     // don't index course node is already initialized
     if (initialized) {
-      return map.size;
+      return coursesMap.size;
     }
     const auth = "authoritativeCourses";
     const remote = { service: auth, method: "list" };
     let res = await esvs(distribution[auth].async.comm.send([], remote));
+
     res = Object.values(res)[0];
     res = await util.whichHashTo(res, "courses", util.id.consistentHash);
+    const foo = JSON.stringify(Object.fromEntries(res));
     const ours = res.get(util.id.getNID(global.nodeConfig));
     const details = { service: auth, method: "details" };
-    res = await esvs(distribution[auth].async.comm.send([ours], details));
-    map = new Map(Object.values(res)[0]);
+      res = await esvs(distribution[auth].async.comm.send([ours], details));
+    coursesMap = new Map(Object.values(res)[0]);
     locks = new Map(
       ours.map((code) => [code, { locks: new Set(), tokens: new Set() }]),
     );
     registered = new Map(ours.map((code) => [code, new Set()]));
-    // TODO: indexing for search
-    // NOTE: current implementation of search assumes no indexing
-    //   aside from base map.  Will have to update search once indexing
-    //   is implemented
+
+    // indices for search
+    [tfidf, idf] = util.calculateTfidf(coursesMap);
 
     // set state of course node to initialized
     initialized = true;
-    return map.size;
+    return coursesMap.size;
   };
-  /* searches for the course using the node's internal indexes
-     params:
-       - subject: course department
-       - number: course code
-       - title: descriptive name of course
-       - description: partial (or whole) description of course
-       - instructor: name of instructor
-     returns:
-       - map, list of course objs (course code -> description)
+
+  /* 
+  Searches for the course using the node's internal indexes.  if all parameters
+  are null, return all courses.  Else, only 1 parameter can be non-null
+
+  params:
+    - query: string, full text search
+    - course: string, course subject + code in the format "CSCI 1380"
+    - department: string, ex "CSCI"
+
+  returns:
+    - arr, list of courseCodes mapped to their rank and course details 
+        [[course code, {...description, rank: rankVal} ** this is a map], ...]
   */
-  this.search = async ({ subject, code, title, description, instructor }) => {
+  this.search = async (query, course, department) => {
     // make sure index is ready
     await this.beginIndex();
 
-    // null check
-    if (subject === null) {
-      subject = "";
+    // if all null or empty, return all courses
+    if (
+      (query === null || query === "") &&
+      course === null &&
+      department === null
+    ) {
+      return coursesMap;
     }
-    if (code === null) {
-      code = "";
+    // if searching for specific course
+    if (course) {
+      if (!coursesMap.has(course)) {
+        return [];
+      }
+      return [[course, coursesMap.get(course)]];
     }
-    if (title === null) {
-      title = "";
+    // if searching for department
+    if (department) {
+      let res = [];
+      coursesMap.forEach((details, courseCode) => {
+        let courseDep = courseCode.split(" ")[0].toLowerCase();
+        if (courseDep.includes(department.toLowerCase())) {
+          res.push([courseCode, details]);
+        }
+      });
+      return res;
     }
-    if (description === null) {
-      description = "";
-    }
-    if (instructor === null) {
-      instructor = "";
-    }
+    // preprocess query - lower case, remove punctuation, split
+    query = query.toLowerCase().replace(regex, "").split(" ");
+    // stem and remove stop words
+    let processedQuery = util.stemAndRemoveStopWords(query);
 
-    // if code is number, change to string
-    code = code.toString();
+    // calculate query tf
+    let tf = util.calculateTf(processedQuery, null, null);
+    // calculate query tfidf
+    let [queryVec, docVecs] = util.calculateQueryTfidf(tf, idf, tfidf);
 
-    // to lowercase
-    subject = subject.toLowerCase();
-    code = code.toLowerCase();
-    title = title.toLowerCase();
-    description = description.toLowerCase();
-    instructor = instructor.toLowerCase();
+    // calcualte query-document similarity
+    let results = [];
+    docVecs.forEach((docVec, doc) => {
+      let rank = util.cosinesim(docVec, queryVec);
 
-    // Iterate over each course object in the map
-    return Object.values(map).filter((course) => {
-      // Check if any of the fields match the query
-      return (
-        // matching the course code and subject
-        (course.code.subject.toLowerCase().includes(subject) &&
-          course.code.number.includes(code)) ||
-        // matching title
-        course.title.toLowerCase().includes(title.toLowerCase()) ||
-        // matching course description
-        (course.description &&
-          course.description.toLowerCase().includes(description)) ||
-        // matching instructor
-        (course.offerings &&
-          course.offerings.some((offering) =>
-            offering.instructors.some((instructors) =>
-              instructors.toLowerCase().includes(instructor),
-            ),
-          ))
-      );
+      // cutoff for docs not returned
+      if (rank < 0.6) {
+        return;
+      }
+
+      let details = { ...coursesMap.get(doc) };
+      details["rank"] = rank;
+      results.push([doc, details]);
     });
+
+    return results;
   };
 
   // lists all students that are registered for this course
   this.listRegister = async (code) => {
+    await this.beginIndex();
+    if (!registered.has(code)) {
+      throw new Error(`cannot find course: ${code}`);
+    }
     return [...registered.get(code)];
   };
 
   // Attempts to lock this student registration. May fail if the student
   // does not qualify for the course.
   this.lock = async (code, record, token) => {
-    const courseRecord = map.get(code);
+    await this.beginIndex();
+      if (!coursesMap.has(code)) {
+      throw new Error(`unknown course: "${code}"`);
+      }
+    const courseRecord = coursesMap.get(code);
     if (!prerequisiteQualifications(record.taken, courseRecord.prerequisites)) {
-      throw new Error("you are not qualiafied to take this course");
+      throw new Error("you are not qualified to take this course");
     }
     if (!courseRecord.semester_range.includes(record.semester)) {
       throw new Error("you are not in the right semester to take this course");
@@ -742,19 +818,25 @@ function Courses() {
 
   // removes the registration lock, because one of the checks failed.
   this.unlock = async (code, lock, token) => {
+    await this.beginIndex();
+    if (!locks.has(code)) {
+      return;
+    }
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
   };
 
   // submits the registration; never fails if you submit the right token.
   this.submit = async (code, lock, token) => {
-    if (!locks.get(code).locks.has(lock)) {
-      throw new Error("we do not have a lock for this course");
+    await this.beginIndex();
+    if (!locks.has(code)) {
+      return;
     }
     locks.get(code).locks.delete(lock);
     locks.get(code).tokens.delete(token);
 
     registered.get(code).add(token);
+    console.trace(`submitting lock ${lock} ${code} ${token}`);
   };
 }
 
