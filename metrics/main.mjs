@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { readFile } from 'node:fs/promises';
-import util from '../distribution/util/util.js';
+import util from '../backend/distribution/util/util.js';
 const { serialize, deserialize } = util;
 import fetch from 'node-fetch';
 
@@ -13,6 +13,7 @@ students = Object.keys(JSON.parse(students));
 
 let courses = await readFile('data/courses.json');
 courses = Object.keys(JSON.parse(courses));
+
 
 let args;
 args = {query: '', course: 'CSCI 1380', department: ''};
@@ -35,6 +36,13 @@ args = {query: 'distributed systems', course: '', department: ''};
 // await timeSearch(10, clients, courses, students) 109.88326800000004 51.78537399999993
 // cold start: 
 
+const times = [];
+for (let i = 0; i < 1000; i++) {
+    const time = await timeSearch(1, clients, courses, students, args);
+//    const time = await timeRegister(1, clients, courses, students);
+    times.push(time);
+}
+console.log(times.join('\n'));
 
 async function request(client, pathname, args) {
     const url = new URL(pathname, client);
@@ -55,7 +63,6 @@ async function timeSearch(count, clients, courses, students, args) {
     const start = performance.now();
     requests = await Promise.all(requests.map((client) => request(client, '/search', args)));
     const time = performance.now() - start;
-    console.log(requests);
     return time;
 }
 

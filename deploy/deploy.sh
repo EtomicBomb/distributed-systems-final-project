@@ -7,19 +7,19 @@ SG_INTERNAL=$(aws ec2 describe-security-groups --group-names group-internal-1380
 
 aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_CLIENT" --output json \
     | jq '[.Reservations[].Instances[] | {public: .NetworkInterfaces[0].Association.PublicIp, private: .PrivateIpAddress}]' \
-    > client.json
+    > deploy/client.json
 
 aws ec2 describe-instances --filters "Name=instance.group-id,Values=$SG_INTERNAL" --output json \
     | jq '[.Reservations[].Instances[] | {public: .NetworkInterfaces[0].Association.PublicIp, private: .PrivateIpAddress}]' \
-    > internal.json
+    > deploy/internal.json
 
 run_ssh() {
-    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem "admin@$1" "$2"
+    ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i deploy/keypair-1380.pem "admin@$1" "$2"
 }
 
 # ssh -i keypair-1380.pem "admin@$ip"
 
-for ip in $(jq -nc --argfile internal internal.json --argfile client client.json '$internal + $client | .[]'); do
+for ip in $(jq -nc --argfile internal deploy/internal.json --argfile client deploy/client.json '$internal + $client | .[]'); do
     targetPublic=$(echo "$ip" | jq -r '.public')
     targetPrivate=$(echo "$ip" | jq -r '.private')
 
@@ -39,17 +39,20 @@ for ip in $(jq -nc --argfile internal internal.json --argfile client client.json
 EOL
 )
 
-    b=$(jq -n --arg targetPrivate "$targetPrivate" --argfile client client.json --argfile internals internal.json "$a")
-    known=$(node -e "console.log(require('../distribution/util/serialization.js').serialize($b))")
+    b=$(jq -n --arg targetPrivate "$targetPrivate" --argfile client deploy/client.json --argfile internals deploy/internal.json "$a")
+    known=$(node -e "console.log(require('./backend/distribution/util/serialization.js').serialize($b))")
 
-    run_ssh $targetPublic "sudo apt update && sudo apt install -y nodejs git vim npm && mkdir -p final && rm -rf final/distribution"
-    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i keypair-1380.pem -r ../www ../distribution.js ../distribution ../package.json ../data ../store "admin@$targetPublic:~/final"
+    run_ssh $targetPublic "sudo apt update && sudo apt install -y nodejs git vim npm && mkdir -p ~/frontend && mkdir -p ~/backend"
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i deploy/keypair-1380.pem -r  data "admin@$targetPublic:~/"
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i deploy/keypair-1380.pem -r frontend/static frontend/main.mjs frontend/package.json "admin@$targetPublic:~/frontend"
+    scp -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" -i deploy/keypair-1380.pem -r backend/distribution backend/distribution.js backend/package.json data "admin@$targetPublic:~/backend"
     run_ssh $targetPublic "\
-        cd final; \
-        npm install; \
-        pkill node; \
         sudo setcap cap_net_bind_service=+ep \$(which node); \
+        pkill node; \
+        cd ~/backend; \
+        npm install; \
         nohup ./distribution.js --config '$known' >> dist.log 2>&1 & \
-        cd www; \
+        cd ~/frontend; \
+        npm install; \
         nohup ./main.mjs >> www.log 2>&1 &"
 done
