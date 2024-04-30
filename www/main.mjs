@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { readFile } from 'node:fs/promises';
-import path from 'node:path';
 import Koa from 'koa';
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
@@ -12,7 +11,9 @@ import fetch from 'node-fetch';
 
 const router = new Router()
     .post('/search', koaBody(), async (ctx, next) => {
-        const {query, course, department} = ctx.request.body;
+        let {query, course, department} = ctx.request.body;
+        course = course.toUpperCase();
+        department = department.toUpperCase();
         ctx.body = await forward(renderSearch, '/client/search', query, course, department);
         ctx.type = 'text/html';
     })

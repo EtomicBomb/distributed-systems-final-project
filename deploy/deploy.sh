@@ -32,10 +32,8 @@ for ip in $(jq -nc --argfile internal internal.json --argfile client client.json
         {gid: "client", node: {ip: \$client[0].private, port: 8080}}, 
         {gid: "authoritativeStudents", node: {ip: \$internals[0].private, port: 8080}},
         {gid: "authoritativeCourses", node: {ip: \$internals[0].private, port: 8080}},
-        {gid: "students", node: {ip: \$internals[1].private, port: 8080}},
-        {gid: "courses", node: {ip: \$internals[2].private, port: 8080}},
-        {gid: "students", node: {ip: \$internals[3].private, port: 8080}},
-        {gid: "courses", node: {ip: \$internals[4].private, port: 8080}}
+        {gid: "students", node: {ip: \$internals[0].private, port: 8080}},
+        {gid: "courses", node: {ip: \$internals[0].private, port: 8080}}
     ]
 } 
 EOL

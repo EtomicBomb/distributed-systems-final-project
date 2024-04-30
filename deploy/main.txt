@@ -28,9 +28,11 @@ aws ec2 create-key-pair \
     --query "KeyMaterial" \
     --output text > keypair-1380.pem \
 
+# ami-0aafdae616ee7c9b7
+
 # client
 aws ec2 run-instances \
-    --image-id ami-0aafdae616ee7c9b7 \
+    --image-id ami-058bd2d568351da34 \
     --count 1 \
     --instance-type t2.micro \
     --key-name keypair-1380 \
@@ -38,8 +40,8 @@ aws ec2 run-instances \
 
 # internal
 aws ec2 run-instances \
-    --image-id ami-0aafdae616ee7c9b7 \
-    --count 5 \
+    --image-id ami-058bd2d568351da34 \
+    --count 1 \
     --instance-type t2.micro \
     --key-name keypair-1380 \
     --security-group-ids "$SG_INTERNAL" \

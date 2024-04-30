@@ -586,6 +586,7 @@ function Students() {
     );
     registered = new Map(tokens.map((token) => [token, new Set()]));
     indexed = true;
+      console.log(`partition has ${map.size}`);
     return map.size;
   };
   this.getRecord = async (token) => {
@@ -707,6 +708,7 @@ function Courses() {
 
     // set state of course node to initialized
     initialized = true;
+      console.log(`partition has ${coursesMap.size}`);
     return coursesMap.size;
   };
 
