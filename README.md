@@ -1,36 +1,5 @@
 ## To-Do
 
-- implement indexing/search: **Alex**
-- document code: **Alex**
-- testing for all endpoints
-  - Clients
-    - client.ready: **Ethan**
-    - client/search: **Alex**
-    - client.listRegister: **Ethan**
-    - client.addRegister: **Ethan**
-  - Students
-    - students.lock: **Ethan**
-    - students.unlock: **Ethan**
-    - students.submit: **Ethan**
-    - students.listRegister **Ethan**
-  - Courses
-    - courses/lock: **Ethan**
-    - courses.submit: **Ethan**
-    - courses.unlock: **Ethan**
-    - courses.search: **Alex**
-    - courses.listRegister: **Ethan**
-- deployment on AWS **Alex, Ben, Ethan**
-- paper
-  - §1, Introduction: **Ben**
-  - §2, Example: **Ben**
-  - §3, 4, 5 Design & Implementation: **Ben**
-  - §6, Evaluation **Ben**
-  - §7, Discussion **Ben**
-  - §8, Related work **Ben**
-  - §9, Conclusion **Ben**
-- frontend **Alex**
-- poster **Alex, Ben, Ethan**
-
 # Architecture
 
 The following describes all endpoints related to the application.
@@ -192,15 +161,3 @@ We could imagine syncing with the authoritative nodes at the end (or periodicall
 Our assumption that no nodes go down is a bad one. We can make the authoritative services be on one node, and make it serve as a "fallback.": automatically detect if any node goes down and route all requests to this one. It should be slower but if something goes wrong during registration, at least we still have some (slow) functionality.
 
 We could imagine keeping the change hashes for each course and student around. We could periodically sync up with the authoritative databases to see if students or courses have new info.
-
-## Scratch
-
-```
-jq -s '[. | .[] | {(.code.subject + " " +  .code.number): .}] | sort | add' minimized.jsonl > courses.json
-```
-
-```
-jq -s '[. | .[] | {(.code.subject + " " +  .code.number): ({subject: .code.subject, number: .code.number} + (. | del(.code)) )}] | sort | add' minimized.jsonl
-```
-
-`https://github.com/aruljohn/popular-baby-names/blob/master/2000/girl_boy_names_2000.csv`
