@@ -152,29 +152,49 @@ We deployed eleven nodes- one authoritativeCourses, one authoritativeStudent, th
 \section{Evaluation}
 Our system requires an authoritativeCourses and authoritativeStudent node, as well as at least one client node for the user to interact with. We tested our system with variable numbers of client, student, and course nodes and measured the relative performance across these different configurations.
 
-\subsection{Registration Performance}
+\subsection{Registration Throughput}
 
 \begin{figure}[!htb]
   \centering
-  \includegraphics[width=0.49\textwidth]{./figs/registrationperformance.pdf}
+  \includegraphics[width=0.49\textwidth]{./figs/registrationthroughput.pdf}
   \caption{
-    \textbf{Registration Performance}
+    \textbf{Registration Throughput}
   }
   % \vspace{-18pt}
 \end{figure}
 
-We measured the performance of our registration system with one, two, and three client nodes. For each number of client nodes, we measured the performance with one, two, and three (of each) course and student nodes. We found that additional client nodes substantially improved performance, whereas increasing the number of student and course nodes had a minimal effect on performance. Using three client nodes, the average time per registration, measured across 1000 trials, was 4ms per registration.
+We measured the throughput of our registration system with one, two, and three client nodes. For each number of client nodes, we measured the throughput with one, two, and three (of each) course and student nodes. We found that additional client nodes substantially improved throughput, whereas increasing the number of student and course nodes had a minimal effect on throughput. Using three client nodes, the average number of registrations per second, measured across 1000 trials, was 260.
 
-\subsection{Query Performance}
+\subsection{Query Throughput}
 \begin{figure}[!htb]
   \centering
-  \includegraphics[width=0.49\textwidth]{./figs/queryperformance.png}
+  \includegraphics[width=0.49\textwidth]{./figs/querythroughput.pdf}
   \caption{
-    \textbf{Query Performance}
+    \textbf{Query Throughput}
   }
   % \vspace{-18pt}
 \end{figure}
-We measured the performance of our query system in similar fashion to our measurement of registration performance. We found once again that increasing the number of client nodes substantially improved performance, whereas we found no statistically significant effect of scaling up from one student and one course node to three student and three course nodes. For 3 client nodes, the average time per query, measured across 100 trials, was 50ms per query.
+We measured the throughput of our query system in similar fashion to our measurement of registration throughput. We found once again that increasing the number of client nodes substantially improved throughput, whereas we found no statistically significant effect of scaling up from one student and one course node to three student and three course nodes. For 3 client nodes, the average number of queries handled per second, measured across 100 trials, was 19.
+
+\subsection{Registration Latency}
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width=0.49\textwidth]{./figs/registrationlatency.pdf}
+  \caption{
+    \textbf{Registration Latency}
+  }
+\end{figure}
+We measured the latency of our registration system over 1000 trials. Over 95 percent of our trials were processed within 30ms, with the majority being processed within 23ms. We experienced a few outliers that took over 100ms to process.
+
+\subsection{Query Latency}
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width=0.49\textwidth]{./figs/querylatency.pdf}
+  \caption{
+    \textbf{Query Latency}
+  }
+\end{figure}
+We also measured the latency of our query system over 1000 trials. Results were more variable than for our registration system. The majority of queries were processed in under 100ms, though some took 200ms, and a few outliers took over 300ms.
 
 \subsection{Benchmarks}
 \begin{figure}[!htb]
